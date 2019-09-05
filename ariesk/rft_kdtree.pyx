@@ -114,3 +114,10 @@ cdef class RftKdTree:
             ]),
             'num_clusters': len(self.clusters),
         }
+
+    def to_dict(self):
+        out = {}
+        for centroid_index, member_indices in self.clusters.items():
+            centroid = self.kmers[centroid_index]
+            out[centroid] = [self.kmers[member_index] for member_index in member_indices]
+        return out
