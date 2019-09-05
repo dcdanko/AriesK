@@ -58,7 +58,7 @@ cdef class RftKdTree:
         self._ramify(self.num_kmers_added, kmer)
         self.num_kmers_added += 1
 
-    def bulk_add_kmer(self, kmers):
+    def bulk_add_kmers(self, kmers):
         for kmer in kmers:
             self.add_kmer(kmer)
 
@@ -96,10 +96,21 @@ cdef class RftKdTree:
                 continue
 
             centroid = self.rfts[centroid_index]
-            clusters[centroid_index] = set([centroid_index])
             this_cluster_members = all_tree.query_ball_point(centroid, self.radius, eps=0.1)
-            this_cluster_members = {index_map[member] for member in this_cluster_members}
-            clusters[centroid_index] |= this_cluster_members
+            this_cluster_members = {
+                index_map[member] for member in this_cluster_members
+                if index_map[member] not in clustered_points
+            }
+            clusters[centroid_index] = set([centroid_index]) | this_cluster_members
             clustered_points |= this_cluster_members
 
         self.clusters = clusters
+
+    def stats(self):
+        return {
+            'num_kmers': sum([len(clust) for clust in self.clusters.values()]),
+            'num_singletons': sum([
+                1 if len(clust) == 1 else 0 for clust in self.clusters.values()
+            ]),
+            'num_clusters': len(self.clusters),
+        }
