@@ -51,15 +51,22 @@ def eval_kdrft_cluster(kmer_len, radius, num_kmers, outfile):
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
 @click.argument('kmer_table', type=click.File('r'))
 def build_kdrft_cluster(radius, kmer_len, num_kmers, outfile, kmer_table):
-    tree = RftKdTree(radius)
+    tree = RftKdTree(radius, kmer_len, num_kmers)
+
+    start = clock()
     for i, line in enumerate(kmer_table):
-        kmer = line.strip().split(',')[0]
-        tree.add(kmer)
         if i >= num_kmers:
             break
-    click.echo('Added kmers to cover.', err=True)
+        kmer = line.strip().split(',')[0]
+        tree.add_kmer(kmer)
+    add_time = clock() - start
+    click.echo(f'Added {num_kmers} kmers to cover in {add_time:.5}s.', err=True)
 
-    kdrft_cover.cluster_greedy(logger=lambda el: click.echo(el, err=True))
-    click.echo(pd.Series(kdrft_cover.stats()), err=True)
-    cover_as_dict = kdrft_cover.to_dict()
+    start = clock()
+    tree.cluster_greedy(logger=lambda el: click.echo(el, err=True))
+    cluster_time = clock() - start
+    click.echo(f'Clustered tree in {cluster_time:.5}s.', err=True)
+
+    click.echo(tree.stats(), err=True)
+    cover_as_dict = tree.to_dict()
     print(dumps(cover_as_dict), file=outfile)
