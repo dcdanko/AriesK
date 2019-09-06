@@ -31,8 +31,10 @@ def calculate_kmer_dists_cluster(kmer_len, num_kmers, outfile, kmer_table):
         kmers.append(line.strip().split(',')[0])
     tbl = []
     start = clock()
-    for k1 in kmers:
-        for k2 in kmers:
+    for i, k1 in enumerate(kmers):
+        for j, k2 in enumerate(kmers):
+            if i < j:
+                break
             tbl.append(dist_factory.all_dists(k1, k2))
     run_time = clock() - start
     click.echo(f'time: {run_time:.5}s', err=True)
