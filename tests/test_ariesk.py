@@ -3,6 +3,7 @@ import random
 
 from unittest import TestCase
 from ariesk.rft_kdtree import RftKdTree
+from ariesk.dists import DistanceFactory
 
 
 def random_kmer(k):
@@ -55,3 +56,12 @@ class TestAriesK(TestCase):
         tree.cluster_greedy()
         self.assertTrue(len(tree.clusters) < N)
         self.assertTrue(0 < len(tree.clusters))
+
+    def test_dists(self):
+        dist_factory = DistanceFactory(31)
+        all_dists = dist_factory.all_dists(
+            'ATCGATCGATCGATCGATCGATCGATCGATCG',
+            'TTCGATCGATCGATCGATCGATCGATCGATCG'
+        )
+        self.assertEqual(all_dists['hamming'], 1)
+

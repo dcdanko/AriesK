@@ -1,4 +1,6 @@
 import click
+import pandas as pd
+
 from random import shuffle
 from time import clock
 from json import dumps
@@ -7,11 +9,31 @@ from gimmebio.sample_seqs import EcoliGenome
 from gimmebio.kmers import make_kmers
 
 from ariesk.rft_kdtree import RftKdTree
+from ariesk.dists import DistanceFactory
 
 
 @click.group()
 def main():
     pass
+
+
+@main.command('dists')
+@click.option('-k', '--kmer-len', default=31)
+@click.option('-n', '--num-kmers', default=1000, help='Number of kmers to compare.')
+@click.option('-o', '--outfile', default='-', type=click.File('w'))
+@click.argument('kmer_table', type=click.File('r'))
+def calculate_kmer_dists_cluster(kmer_len, num_kmers, outfile, kmer_table):
+    dist_factory = DistanceFactory(kmer_len)
+    kmers = [line.strip().split(',')[0] for i, line in enumerate(kmer_table) if i < num_kmers]
+    tbl = []
+    start = clock()
+    for k1 in kmers:
+        for k2 in kmers:
+            tbl.append(dist_factory.all_dists(k1, k2))
+    run_time = clock() - start
+    print(f'time: {run_time:.5}s')
+    tbl = pd.DataFrame(tbl)
+    tbl.to_csv(outfile)
 
 
 @main.command('eval')
