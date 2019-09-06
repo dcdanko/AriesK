@@ -24,7 +24,11 @@ def main():
 @click.argument('kmer_table', type=click.File('r'))
 def calculate_kmer_dists_cluster(kmer_len, num_kmers, outfile, kmer_table):
     dist_factory = DistanceFactory(kmer_len)
-    kmers = [line.strip().split(',')[0] for i, line in enumerate(kmer_table) if i < num_kmers]
+    kmers = []
+    for i, line in enumerate(kmer_table):
+        if i >= num_kmers:
+            break
+        kmers.append(line.strip().split(',')[0])
     tbl = []
     start = clock()
     for k1 in kmers:
