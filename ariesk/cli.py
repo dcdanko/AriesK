@@ -35,7 +35,7 @@ def calculate_kmer_dists_cluster(kmer_len, num_kmers, outfile, kmer_table):
         for k2 in kmers:
             tbl.append(dist_factory.all_dists(k1, k2))
     run_time = clock() - start
-    print(f'time: {run_time:.5}s')
+    click.echo(f'time: {run_time:.5}s', err=True)
     tbl = pd.DataFrame(tbl)
     tbl.to_csv(outfile)
 
