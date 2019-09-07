@@ -23,6 +23,13 @@ extensions = [
         extra_compile_args=extra_compile_args,
         language='c++',
     ),
+    Extension(
+        'ariesk.ram',
+        ['ariesk/ram.pyx'],
+        include_dirs=[numpy.get_include()],
+        extra_compile_args=extra_compile_args,
+        language='c++',
+    ),
 ]
 setuptools.setup(
     name='ariesk',

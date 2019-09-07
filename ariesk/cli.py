@@ -10,6 +10,11 @@ from gimmebio.kmers import make_kmers
 
 from ariesk.rft_kdtree import RftKdTree
 from ariesk.dists import DistanceFactory
+from ariesk.ram import (
+    Ramifier,
+    StatisticalRam,
+    RotatingRamifier,
+)
 
 
 @click.group()
@@ -40,6 +45,24 @@ def calculate_kmer_dists_cluster(kmer_len, num_kmers, outfile, kmer_table):
     click.echo(f'time: {run_time:.5}s', err=True)
     tbl = pd.DataFrame(tbl)
     tbl.to_csv(outfile)
+
+
+@main.command('rotate')
+@click.option('-k', '--kmer-len', default=31)
+@click.option('-n', '--num-kmers', default=1000, help='Number of kmers to compare.')
+@click.option('-o', '--outfile', default='-', type=click.File('w'))
+@click.argument('kmer_table', type=click.Path('r'))
+def calculate_pca_rotation(kmer_len, num_kmers, outfile, kmer_table):
+    """Calculate a PCA rotation from a set of k-mers."""
+    stat_ram = StatisticalRam(kmer_len, num_kmers)
+    stat_ram.add_kmers_from_file(kmer_table)
+    out = {
+        'center': stat_ram.get_centers().tolist(),
+        'scale': stat_ram.get_scales().tolist(),
+        'rotation': stat_ram.get_rotation().tolist(),
+    }
+    outfile.write(dumps(out))
+
 
 
 @main.command('eval')
