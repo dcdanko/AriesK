@@ -30,6 +30,13 @@ extensions = [
         extra_compile_args=extra_compile_args,
         language='c++',
     ),
+    Extension(
+        'ariesk.utils',
+        ['ariesk/utils.pyx'],
+        include_dirs=[numpy.get_include()],
+        extra_compile_args=extra_compile_args,
+        language='c++',
+    ),
 ]
 setuptools.setup(
     name='ariesk',

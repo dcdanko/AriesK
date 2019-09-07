@@ -2,13 +2,14 @@
 import numpy as np
 cimport numpy as npc
 
+from .utils cimport KmerAddable
 from .ramft import build_rs_matrix
+
+from json import loads
 
 
 cdef class Ramifier:
     """Project k-mers into RFT space."""
-    cdef public long k
-    cdef public double [:, :] rs_matrix
 
     def __cinit__(self, k):
         self.k = k
@@ -28,10 +29,6 @@ cdef class Ramifier:
 
 cdef class RotatingRamifier:
     """Project k-mers into RFT space with PCA."""
-    cdef public Ramifier ramifier
-    cdef public long k, d
-    cdef public double [:, :] rs_matrix, rotation
-    cdef public double [:] center, scale
 
     def __cinit__(self, k, d, rotation, center, scale):
         self.k = k
@@ -49,15 +46,23 @@ cdef class RotatingRamifier:
     def ramify(self, str kmer):
         return self.c_ramify(kmer)
 
+    @classmethod
+    def from_file(cls, d, filepath):
+        saved_rotation = loads(open(filepath).read())
+        return cls(
+            saved_rotation['k'],
+            d,
+            np.array(saved_rotation['rotation'], dtype=float),
+            np.array(saved_rotation['center'], dtype=float),
+            np.array(saved_rotation['scale'], dtype=float),
+        )
 
-cdef class StatisticalRam:
+
+cdef class StatisticalRam(KmerAddable):
     """Identify center, scale, and rotation on a set of k-mers.
 
     Easier to pre-compute this stuff.
     """
-    cdef public long k, num_kmers_added, max_size
-    cdef public Ramifier ramifier
-    cdef public double [:, :] rfts
 
     def __cinit__(self, k, max_size):
         self.k = k
@@ -71,14 +76,6 @@ cdef class StatisticalRam:
         cdef double [:] rft = self.ramifier.c_ramify(kmer)
         self.rfts[self.num_kmers_added] = rft
         self.num_kmers_added += 1
-
-    def add_kmers_from_file(self, str filename, sep=','):
-        with open(filename) as f:
-            for i, line in enumerate(f):
-                if i >= self.max_size:
-                    break
-                kmer = line.split(sep)[0]
-                self.add_kmer(kmer)
 
     def get_centers(self):
         return np.mean(self.rfts, axis=0)

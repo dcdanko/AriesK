@@ -3,64 +3,34 @@ import numpy as np
 cimport numpy as npc
 from scipy.spatial import cKDTree as KDTree
 
-from .ramft import build_rs_matrix
+from .utils cimport convert_kmer, KmerAddable
+from .ram cimport RotatingRamifier
 
 
-cdef long convert_kmer(str kmer):
-    cdef long out = 0
-    for i, base in enumerate(kmer):
-        val = 0
-        if base == 'C':
-            val = 1
-        elif base == 'G':
-            val = 2
-        elif base == 'T':
-            val = 3
-        out += val + (4 ** i) 
-    return out
-
-
-cdef class RftKdTree:
+cdef class RftKdTree(KmerAddable):
     cdef public float radius
-    cdef public long k, num_kmers_added, max_size, rft_dims
+    cdef public RotatingRamifier ramifier
     cdef public long [:] kmers
     cdef public double [:, :] rfts
-    cdef public double [:, :] rs_matrix
     cdef public object clusters
 
-    def __cinit__(self, radius, k, max_size):
+    def __cinit__(self, radius, max_size, ramifier):
         self.radius = radius
-        self.k = k
-        self.rft_dims = min(12, k - 1)
+        self.ramifier = ramifier
         self.max_size = max_size
         self.num_kmers_added = 0
-
-        self.rs_matrix = build_rs_matrix(self.k)
-
         self.kmers = npc.ndarray((self.max_size,), dtype=long)
-        self.rfts = npc.ndarray((self.max_size, self.rft_dims))
+        self.rfts = npc.ndarray((self.max_size, self.ramifier.d))
 
         self.clusters = {}
-
-    def  _ramify(self, int index, str kmer):
-        cdef long [:, :] binary_kmer = np.array([
-            [1 if base == seqb else 0 for seqb in kmer]
-            for base in 'ACGT'
-        ]).T
-        cdef double [:, :] rft = abs(np.dot(self.rs_matrix, binary_kmer))
-        cdef double [:] power_series = np.sum(rft, axis=1)
-        self.rfts[self.num_kmers_added] = power_series[1:(1 + self.rft_dims)]
 
     cpdef add_kmer(self, str kmer):
         assert self.num_kmers_added < self.max_size
         cdef long kmer_code = convert_kmer(kmer)
         self.kmers[self.num_kmers_added] = kmer_code
-        self._ramify(self.num_kmers_added, kmer)
+        cdef double [:] rft = self.ramifier.c_ramify(kmer)
+        self.rfts[self.num_kmers_added] = rft
         self.num_kmers_added += 1
-
-    def bulk_add_kmers(self, kmers):
-        for kmer in kmers:
-            self.add_kmer(kmer)
 
     def cluster_greedy(self, logger=None):
         all_tree = KDTree(self.rfts)
@@ -72,13 +42,13 @@ cdef class RftKdTree:
             if centroid_index > 0 and centroid_index % 1000 == 0:
                 if logger is not None:
                     logger(f'Point {centroid_index}, currently {len(clusters)} clusters')
-                
+
                 # Rebuild all_tree to only include points which are not yet clustered
                 # this works because we cannot cluster points twice and it makes
                 # the search space smaller (at the expense of rebuilding the tree and
                 # added code complexity for offset)
                 unclustered_points = npc.ndarray(
-                    (self.max_size - len(clustered_points), self.rft_dims)
+                    (self.max_size - len(clustered_points), self.ramifier.d)
                 )
                 index_map = {}
                 current_point_index = 0

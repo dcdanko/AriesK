@@ -12,6 +12,7 @@ from ariesk.ram import (
 )
 
 KMER_TABLE = join(dirname(__file__), 'small_31mer_table.csv')
+KMER_ROTATION = join(dirname(__file__), 'small_31mer_rotation.json')
 
 
 def random_kmer(k):
@@ -21,16 +22,18 @@ def random_kmer(k):
 class TestAriesK(TestCase):
 
     def test_add_kmer(self):
-        tree = RftKdTree(0.1, 32, 1)
-        tree.add_kmer('ATCGATCGATCGATCGATCGATCGATCGATCG')
+        ramifier = RotatingRamifier.from_file(8, KMER_ROTATION)
+        tree = RftKdTree(0.1, 1, ramifier)
+        tree.add_kmer('ATCGATCGATCGATCGATCGATCGATCGATC')
         self.assertTrue(tree.kmers.shape[0] == 1)
 
     def test_cannot_add_kmer(self):
-        tree = RftKdTree(0.1, 32, 1)
-        tree.add_kmer('ATCGATCGATCGATCGATCGATCGATCGATCG')
+        ramifier = RotatingRamifier.from_file(8, KMER_ROTATION)
+        tree = RftKdTree(0.1, 1, ramifier)
+        tree.add_kmer('ATCGATCGATCGATCGATCGATCGATCGATC')
         self.assertRaises(
             AssertionError,
-            lambda: tree.add_kmer('ATCGATCGATCGATCGATCGATCGATCGATCG')
+            lambda: tree.add_kmer('ATCGATCGATCGATCGATCGATCGATCGATC')
         )
 
     def test_ramify(self):
@@ -68,28 +71,31 @@ class TestAriesK(TestCase):
         self.assertTrue(rft.shape == (8,))
 
     def test_cluster_greedy_no_batch(self):
-        N, K = 1000, 10
-        tree = RftKdTree(0.4, K, N)
+        ramifier = RotatingRamifier.from_file(8, KMER_ROTATION)
+        N = 1000
+        tree = RftKdTree(0.4, N, ramifier)
         for _ in range(N):
-            tree.add_kmer(random_kmer(K))
+            tree.add_kmer(random_kmer(31))
         tree.cluster_greedy()
         self.assertTrue(len(tree.clusters) < N)
         self.assertTrue(0 < len(tree.clusters))
 
     def test_cluster_greedy_with_batch_twice(self):
-        N, K = 2002, 10
-        tree = RftKdTree(0.4, K, N)
+        ramifier = RotatingRamifier.from_file(8, KMER_ROTATION)
+        N = 2002
+        tree = RftKdTree(0.4, N, ramifier)
         for _ in range(N):
-            tree.add_kmer(random_kmer(K))
+            tree.add_kmer(random_kmer(31))
         tree.cluster_greedy()
         self.assertTrue(len(tree.clusters) < N)
         self.assertTrue(0 < len(tree.clusters))
 
     def test_cluster_greedy_with_batch(self):
-        N, K = 1999, 10
-        tree = RftKdTree(0.4, K, N)
+        ramifier = RotatingRamifier.from_file(8, KMER_ROTATION)
+        N = 1999
+        tree = RftKdTree(0.4, N, ramifier)
         for _ in range(N):
-            tree.add_kmer(random_kmer(K))
+            tree.add_kmer(random_kmer(31))
         tree.cluster_greedy()
         self.assertTrue(len(tree.clusters) < N)
         self.assertTrue(0 < len(tree.clusters))

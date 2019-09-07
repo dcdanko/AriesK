@@ -57,6 +57,7 @@ def calculate_pca_rotation(kmer_len, num_kmers, outfile, kmer_table):
     stat_ram = StatisticalRam(kmer_len, num_kmers)
     stat_ram.add_kmers_from_file(kmer_table)
     out = {
+        'k': kmer_len,
         'center': stat_ram.get_centers().tolist(),
         'scale': stat_ram.get_scales().tolist(),
         'rotation': stat_ram.get_rotation().tolist(),
