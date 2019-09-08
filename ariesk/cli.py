@@ -62,7 +62,8 @@ def build_plaid_cover(radius, dimension, num_kmers, outfile, rotation, kmer_tabl
     start = clock()
     plaid.cluster()
     cluster_time = clock() - start
-    click.echo(f'Built plaid cover in {cluster_time:.5}s.', err=True)
+    n_centers = len(plaid.clusters.keys())
+    click.echo(f'Built plaid cover in {cluster_time:.5}s. {n_centers} clusters.', err=True)
 
     outfile.write(dumps(plaid.to_dict()))
 
