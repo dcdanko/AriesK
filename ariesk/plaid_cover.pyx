@@ -64,4 +64,21 @@ cdef class PlaidCoverBuilder(KmerAddable):
             point = tuple(Y[i, :])
             self.clusters[point] = [i] + self.clusters.get(point, [])
 
-
+    def to_dict(self):
+        out = {
+            'ramifier': {
+                'k': self.ramifier.k,
+                'd': self.ramifier.d,
+                'center': np.asarray(self.ramifier.center).tolist(),
+                'scale': np.asarray(self.ramifier.scale).tolist(),
+                'rotation': np.asarray(self.ramifier.rotation).tolist(),
+            },
+            'kmers': np.asarray(self.kmers).tolist(),
+            'clusters': [],
+        }
+        for centroid, members in self.clusters.items():
+            out['clusters'].append({
+                'centroid': centroid,
+                'members': members,
+            })
+        return out

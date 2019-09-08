@@ -15,6 +15,7 @@ from ariesk.ram import (
     StatisticalRam,
     RotatingRamifier,
 )
+from ariesk.plaid_cover import PlaidCoverBuilder
 
 from .cli_dev import dev_cli
 
@@ -45,7 +46,28 @@ def calculate_pca_rotation(kmer_len, num_kmers, outfile, kmer_table):
     outfile.write(dumps(out))
 
 
-@main.command('build')
+@main.command('build-plaid')
+@click.option('-r', '--radius', default=1)
+@click.option('-d', '--dimension', default=8)
+@click.option('-n', '--num-kmers', default=1000, help='Number of kmers to cluster.')
+@click.option('-o', '--outfile', default='-', type=click.File('w'))
+@click.argument('rotation', type=click.Path())
+@click.argument('kmer_table', type=click.Path())
+def build_plaid_cover(radius, dimension, num_kmers, outfile, rotation, kmer_table):
+    ramifier = RotatingRamifier.from_file(dimension, rotation)
+    plaid = PlaidCoverBuilder(radius, num_kmers, ramifier)
+    plaid.add_kmers_from_file(kmer_table)
+    click.echo(f'Added {num_kmers} kmers to cover.', err=True)
+
+    start = clock()
+    plaid.cluster()
+    cluster_time = clock() - start
+    click.echo(f'Built plaid cover in {cluster_time:.5}s.', err=True)
+
+    outfile.write(dumps(plaid.to_dict()))
+
+
+@main.command('build-tree')
 @click.option('-r', '--radius', default=0.1)
 @click.option('-k', '--kmer-len', default=31)
 @click.option('-n', '--num-kmers', default=1000, help='Number of kmers to cluster.')

@@ -40,7 +40,7 @@ def calculate_kmer_dists_cluster(kmer_len, num_kmers, outfile, kmer_table):
 
 @dev_cli.command('add-rotation-dists')
 @click.option('-d', '--dimensions', default=8)
-@click.option('-k', '--kmer-cols', nargs=2, default(1, 2))
+@click.option('-k', '--kmer-cols', nargs=2, default=(1, 2))
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
 @click.argument('rotation', type=click.Path())
 @click.argument('dist_table', type=click.File('r'))
