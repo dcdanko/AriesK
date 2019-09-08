@@ -10,6 +10,7 @@ from ariesk.ram import (
     StatisticalRam,
     RotatingRamifier,
 )
+from ariesk.plaid_cover import PlaidCoverBuilder
 
 KMER_TABLE = join(dirname(__file__), 'small_31mer_table.csv')
 KMER_ROTATION = join(dirname(__file__), 'small_31mer_rotation.json')
@@ -107,4 +108,14 @@ class TestAriesK(TestCase):
             'TTCGATCGATCGATCGATCGATCGATCGATCG'
         )
         self.assertEqual(all_dists['hamming'], 1)
+
+    def test_plaid_cover(self):
+        ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
+        plaid = PlaidCoverBuilder(1, 100, ramifier)
+        plaid.add_kmers_from_file(KMER_TABLE)
+        plaid.cluster()
+        n_centers = len(plaid.clusters.keys())
+        n_points = sum([len(cluster) for cluster in plaid.clusters.values()])
+        self.assertLess(n_centers, 100)
+        self.assertEqual(n_points, 100)
 
