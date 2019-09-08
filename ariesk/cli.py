@@ -16,35 +16,15 @@ from ariesk.ram import (
     RotatingRamifier,
 )
 
+from .cli_dev import dev_cli
+
 
 @click.group()
 def main():
     pass
 
 
-@main.command('dists')
-@click.option('-k', '--kmer-len', default=31)
-@click.option('-n', '--num-kmers', default=1000, help='Number of kmers to compare.')
-@click.option('-o', '--outfile', default='-', type=click.File('w'))
-@click.argument('kmer_table', type=click.File('r'))
-def calculate_kmer_dists_cluster(kmer_len, num_kmers, outfile, kmer_table):
-    dist_factory = DistanceFactory(kmer_len)
-    kmers = []
-    for i, line in enumerate(kmer_table):
-        if i >= num_kmers:
-            break
-        kmers.append(line.strip().split(',')[0])
-    tbl = []
-    start = clock()
-    for i, k1 in enumerate(kmers):
-        for j, k2 in enumerate(kmers):
-            if i < j:
-                break
-            tbl.append(dist_factory.all_dists(k1, k2))
-    run_time = clock() - start
-    click.echo(f'time: {run_time:.5}s', err=True)
-    tbl = pd.DataFrame(tbl)
-    tbl.to_csv(outfile)
+main.add_command(dev_cli)
 
 
 @main.command('rotate')
@@ -63,37 +43,6 @@ def calculate_pca_rotation(kmer_len, num_kmers, outfile, kmer_table):
         'rotation': stat_ram.get_rotation().tolist(),
     }
     outfile.write(dumps(out))
-
-
-
-@main.command('eval')
-@click.option('-k', '--kmer-len', default=32)
-@click.option('-r', '--radius', default=0.1)
-@click.option('-n', '--num-kmers', default=1000, help='Number of kmers to cluster.')
-@click.option('-o', '--outfile', default='-', type=click.File('w'))
-def eval_kdrft_cluster(kmer_len, radius, num_kmers, outfile):
-    ecoli_kmers = [str(el) for el in make_kmers(
-        EcoliGenome().longest_contig()[:kmer_len + num_kmers - 1],
-        kmer_len, canon=True
-    )]
-    print(f'Made {len(ecoli_kmers)} E. coli k-mers for testing')
-
-    tree = RftKdTree(radius, kmer_len, num_kmers)
-    start = clock()
-    tree.bulk_add_kmers(ecoli_kmers)
-    tree.cluster_greedy()
-    build_time = clock() - start
-
-    time_units = 's'
-    if build_time < 1:
-        build_time *= 1000
-        time_units = 'ms'
-    elif build_time > 1000:
-        build_time /= 60
-        time_units = 'm'
-
-    print(f'Build time: {build_time:.5}{time_units}')
-    print(tree.stats())
 
 
 @main.command('build')
