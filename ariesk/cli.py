@@ -47,7 +47,7 @@ def calculate_pca_rotation(kmer_len, num_kmers, outfile, kmer_table):
 
 
 @main.command('build-plaid')
-@click.option('-r', '--radius', default=1)
+@click.option('-r', '--radius', default=1.0, type=float)
 @click.option('-d', '--dimension', default=8)
 @click.option('-n', '--num-kmers', default=1000, help='Number of kmers to cluster.')
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
