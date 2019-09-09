@@ -89,7 +89,7 @@ def build_grid_cover(radius, dimension, num_kmers, start_offset, outfile, rotati
     grid.cluster()
     cluster_time = time() - start
     n_centers = len(grid.clusters.keys())
-    click.echo(f'Built plaid cover in {cluster_time:.5}s. {n_centers:,} clusters.', err=True)
+    click.echo(f'Built grid cover in {cluster_time:.5}s. {n_centers:,} clusters.', err=True)
 
     outfile.write(dumps(grid.to_dict()))
 
@@ -114,12 +114,14 @@ def merge_grid_cover(outfile, grid_covers):
             members = [el + len(out['kmers']) for el in cluster['members']]
             clusters.get(centroid, []).append(members)
 
+    n_centers = len(grid.clusters.keys())
     for centroid, members in clusters.items():
         out['clusters'].append({
             'centroid': centroid,
             'members': members,
 
         })
+    click.echo(f'Merged grid covers. {n_centers:,} clusters.', err=True)
     outfile.write(dumps(out))
 
 
