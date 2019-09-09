@@ -2,8 +2,8 @@ import click
 import pandas as pd
 
 from random import shuffle
-from time import clock
-from json import dumps
+from time import time
+from json import dumps, loads
 
 from gimmebio.sample_seqs import EcoliGenome
 from gimmebio.kmers import make_kmers
@@ -60,9 +60,9 @@ def build_plaid_cover(radius, dimension, num_kmers, outfile, rotation, kmer_tabl
     plaid.add_kmers_from_file(kmer_table)
     click.echo(f'Added {num_kmers} kmers to cover.', err=True)
 
-    start = clock()
+    start = time()
     plaid.cluster()
-    cluster_time = clock() - start
+    cluster_time = time() - start
     n_centers = len(plaid.clusters.keys())
     click.echo(f'Built plaid cover in {cluster_time:.5}s. {n_centers} clusters.', err=True)
 
@@ -80,18 +80,47 @@ def build_plaid_cover(radius, dimension, num_kmers, outfile, rotation, kmer_tabl
 def build_grid_cover(radius, dimension, num_kmers, start_offset, outfile, rotation, kmer_table):
     ramifier = RotatingRamifier.from_file(dimension, rotation)
     grid = GridCoverBuilder(radius, num_kmers, ramifier)
-    start = clock()
+    start = time()
     grid.add_kmers_from_file(kmer_table, start=start_offset)
-    add_time = clock() - start
-    click.echo(f'Added {num_kmers} kmers to cover in {add_time:.5}s.', err=True)
+    add_time = time() - start
+    click.echo(f'Added {num_kmers:,} kmers to cover in {add_time:.5}s.', err=True)
 
-    start = clock()
+    start = time()
     grid.cluster()
-    cluster_time = clock() - start
+    cluster_time = time() - start
     n_centers = len(grid.clusters.keys())
-    click.echo(f'Built plaid cover in {cluster_time:.5}s. {n_centers} clusters.', err=True)
+    click.echo(f'Built plaid cover in {cluster_time:.5}s. {n_centers:,} clusters.', err=True)
 
     outfile.write(dumps(grid.to_dict()))
+
+
+@main.command('merge-grid')
+@click.option('-o', '--outfile', default='-', type=click.File('w'))
+@click.argument('grid_covers', nargs=-1, type=click.File('r'))
+def merge_grid_cover(outfile, grid_covers):
+    first = loads(grid_covers[0].read())
+    out = {
+        'type': 'grid_cover',
+        'radius': first['radius'],
+        'ramifier': first['ramifier'],
+        'kmers': first['kmers'],
+        'clusters': []
+    }
+    clusters = {tuple(cluster['centroid']): cluster['members'] for cluster in first['clusters']}
+    for grid_cover in grid_covers[1:]:
+        grid_cover = loads(grid_cover.read())
+        for cluster in grid_cover['clusters']:
+            centroid = tuple(cluster['centroid'])
+            members = [el + len(out['kmers']) for el in cluster['members']]
+            clusters.get(centroid, []).append(members)
+
+    for centroid, members in clusters.items():
+        out['clusters'].append({
+            'centroid': centroid,
+            'members': members,
+
+        })
+    outfile.write(dumps(out))
 
 
 @main.command('build-tree')
@@ -103,18 +132,18 @@ def build_grid_cover(radius, dimension, num_kmers, start_offset, outfile, rotati
 def build_kdrft_cluster(radius, kmer_len, num_kmers, outfile, kmer_table):
     tree = RftKdTree(radius, kmer_len, num_kmers)
 
-    start = clock()
+    start = time()
     for i, line in enumerate(kmer_table):
         if i >= num_kmers:
             break
         kmer = line.strip().split(',')[0]
         tree.add_kmer(kmer)
-    add_time = clock() - start
+    add_time = time() - start
     click.echo(f'Added {num_kmers} kmers to cover in {add_time:.5}s.', err=True)
 
-    start = clock()
+    start = time()
     tree.cluster_greedy(logger=lambda el: click.echo(el, err=True))
-    cluster_time = clock() - start
+    cluster_time = time() - start
     click.echo(f'Clustered tree in {cluster_time:.5}s.', err=True)
 
     click.echo(tree.stats(), err=True)
