@@ -16,6 +16,7 @@ from ariesk.ram import (
     RotatingRamifier,
 )
 from ariesk.plaid_cover import PlaidCoverBuilder
+from ariesk.grid_cover import GridCoverBuilder
 
 from .cli_dev import dev_cli
 
@@ -66,6 +67,31 @@ def build_plaid_cover(radius, dimension, num_kmers, outfile, rotation, kmer_tabl
     click.echo(f'Built plaid cover in {cluster_time:.5}s. {n_centers} clusters.', err=True)
 
     outfile.write(dumps(plaid.to_dict()))
+
+
+@main.command('build-grid')
+@click.option('-r', '--radius', default=0.02, type=float)
+@click.option('-d', '--dimension', default=8)
+@click.option('-n', '--num-kmers', default=1000, help='Number of kmers to cluster.')
+@click.option('-s', '--start-offset', default=1000)
+@click.option('-o', '--outfile', default='-', type=click.File('w'))
+@click.argument('rotation', type=click.Path())
+@click.argument('kmer_table', type=click.Path())
+def build_grid_cover(radius, dimension, num_kmers, start_offset, outfile, rotation, kmer_table):
+    ramifier = RotatingRamifier.from_file(dimension, rotation)
+    grid = GridCoverBuilder(radius, num_kmers, ramifier)
+    start = clock()
+    grid.add_kmers_from_file(kmer_table, start=start_offset)
+    add_time = clock() - start
+    click.echo(f'Added {num_kmers} kmers to cover in {add_time:.5}s.', err=True)
+
+    start = clock()
+    grid.cluster()
+    cluster_time = clock() - start
+    n_centers = len(grid.clusters.keys())
+    click.echo(f'Built plaid cover in {cluster_time:.5}s. {n_centers} clusters.', err=True)
+
+    outfile.write(dumps(grid.to_dict()))
 
 
 @main.command('build-tree')

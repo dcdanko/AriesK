@@ -6,7 +6,8 @@ from Cython.Build import cythonize
 import numpy
 from distutils.extension import Extension
 
-extra_compile_args = ['-std=c++11']
+extra_compile_args = ['-std=c++11', "-O3", "-ffast-math", "-march=native", "-fopenmp" ]
+extra_link_args = ['-fopenmp']
 
 extensions = [
     Extension(
@@ -33,6 +34,14 @@ extensions = [
     Extension(
         'ariesk.plaid_cover',
         ['ariesk/plaid_cover.pyx'],
+        include_dirs=[numpy.get_include()],
+        extra_compile_args=extra_compile_args,
+        extra_link_args=extra_link_args,
+        language='c++',
+    ),
+    Extension(
+        'ariesk.grid_cover',
+        ['ariesk/grid_cover.pyx'],
         include_dirs=[numpy.get_include()],
         extra_compile_args=extra_compile_args,
         language='c++',

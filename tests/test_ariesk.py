@@ -119,3 +119,13 @@ class TestAriesK(TestCase):
         self.assertLess(n_centers, 100)
         self.assertEqual(n_points, 100)
 
+    def test_plaid_cover_parallel(self):
+        ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
+        plaid = PlaidCoverBuilder(1, 100, ramifier, threads=4)
+        plaid.parallel_add_kmers_from_file(KMER_TABLE)
+        plaid.cluster()
+        n_centers = len(plaid.clusters.keys())
+        n_points = sum([len(cluster) for cluster in plaid.clusters.values()])
+        self.assertLess(n_centers, 100)
+        self.assertEqual(n_points, 100)
+
