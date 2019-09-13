@@ -57,6 +57,16 @@ cdef class RotatingRamifier:
             np.array(saved_rotation['scale'], dtype=float),
         )
 
+    @classmethod
+    def from_dict(cls, saved_dict):
+        return cls(
+            saved_dict['k'],
+            saved_dict['d'],
+            np.array(saved_dict['rotation'], dtype=float),
+            np.array(saved_dict['center'], dtype=float),
+            np.array(saved_dict['scale'], dtype=float),
+        )
+
 
 cdef class StatisticalRam(KmerAddable):
     """Identify center, scale, and rotation on a set of k-mers.

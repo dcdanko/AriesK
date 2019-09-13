@@ -3,6 +3,7 @@ import random
 
 from os.path import join, dirname
 from unittest import TestCase
+from ariesk.utils import py_convert_kmer, py_reverse_convert_kmer
 from ariesk.rft_kdtree import RftKdTree
 from ariesk.dists import DistanceFactory
 from ariesk.ram import (
@@ -36,6 +37,13 @@ class TestAriesK(TestCase):
             AssertionError,
             lambda: tree.add_kmer('ATCGATCGATCGATCGATCGATCGATCGATC')
         )
+
+    def test_encode_decode_kmer(self):
+        kmer = 'ATCG'
+        code = py_convert_kmer(kmer)
+        print(code)
+        decoded = py_reverse_convert_kmer(code)
+        self.assertEqual(kmer, decoded)
 
     def test_ramify(self):
         ramifier = Ramifier(32)
@@ -118,14 +126,3 @@ class TestAriesK(TestCase):
         n_points = sum([len(cluster) for cluster in plaid.clusters.values()])
         self.assertLess(n_centers, 100)
         self.assertEqual(n_points, 100)
-
-    def test_plaid_cover_parallel(self):
-        ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
-        plaid = PlaidCoverBuilder(1, 100, ramifier, threads=4)
-        plaid.parallel_add_kmers_from_file(KMER_TABLE)
-        plaid.cluster()
-        n_centers = len(plaid.clusters.keys())
-        n_points = sum([len(cluster) for cluster in plaid.clusters.values()])
-        self.assertLess(n_centers, 100)
-        self.assertEqual(n_points, 100)
-
