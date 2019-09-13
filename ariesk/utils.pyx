@@ -1,4 +1,6 @@
 
+cimport numpy as npc
+
 
 cdef long convert_kmer(str kmer):
     cdef long out = 0
@@ -11,6 +13,21 @@ cdef long convert_kmer(str kmer):
         elif base == 'T':
             val = 3
         out += val + (4 ** i) 
+    return out
+
+
+cdef str reverse_convert_kmer(long kmer):
+    cdef str base4 = npc.base_repr(kmer, base=4)
+    cdef str out = ''
+    for code in base4[::-1]:
+        if code == '0':
+            out += 'A'
+        elif code == '1':
+            out += 'C'
+        elif code == '2':
+            out += 'G'
+        else:
+            out += 'T'
     return out
 
 
