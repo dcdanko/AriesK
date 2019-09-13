@@ -12,6 +12,8 @@ from gimmebio.kmers import make_kmers
 
 from ariesk.rft_kdtree import RftKdTree
 from ariesk.dists import DistanceFactory
+from ariesk.searcher import GridCoverSearcher
+
 from ariesk.ram import (
     Ramifier,
     StatisticalRam,
@@ -21,6 +23,7 @@ from ariesk.plaid_cover import PlaidCoverBuilder
 from ariesk.grid_cover import GridCoverBuilder
 
 from .cli_dev import dev_cli
+from .cli_stats import stats_cli
 
 
 @click.group()
@@ -29,6 +32,7 @@ def main():
 
 
 main.add_command(dev_cli)
+main.add_command(stats_cli)
 
 
 @main.command('rotate')
@@ -157,26 +161,36 @@ def build_kdrft_cluster(radius, kmer_len, num_kmers, outfile, kmer_table):
 
 @main.command('search')
 @click.option('-p', '--port', default=50007)
+@click.option('-r', '--radius', default=1.0)
 @click.argument('kmer')
-def search(port, kmer):
+def search(port, radius, kmer):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect(('localhost', port))
-        s.sendall(kmer.encode('utf-8'))
+        s.sendall(f'{kmer} {radius}'.encode('utf-8'))
         #data = s.recv(1024)
         #print('Received', repr(data))
 
 
 @main.command('search-server')
 @click.option('-p', '--port', default=50007)
-def run_search_server(port):
+@click.argument('grid_cover', type=click.File('r'))
+def run_search_server(port, grid_cover):
+    grid = GridCoverSearcher.from_dict(loads(grid_cover.read()))
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(('localhost', port))
         s.listen(1)
         print(f'Listening on port {port}')
-        conn, addr = s.accept()
-        with conn:
-            print('Connected by', addr)
-            while True:
-                kmer = conn.recv(1024)
-                if not kmer: break
-                print(kmer)
+        while True:
+            conn, addr = s.accept()
+            with conn:
+                # print('Connected by', addr)
+                while True:
+                    data = conn.recv(1024).decode('utf-8')
+                    if not data: break
+
+                    kmer, radius = data.split()
+                    print(f'Searching {kmer} with radius {radius}')
+                    results = grid.search(kmer, float(radius))
+                    for result in results:
+                        print(f'{kmer} {result}')
+                

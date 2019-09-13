@@ -1,7 +1,8 @@
 
 import numpy as np
 cimport numpy as npc
-from scipy.spatial import cKDTree as KDTree
+
+from scipy.spatial import cKDTree
 
 from .ram cimport RotatingRamifier
 from .utils cimport reverse_convert_kmer, KmerAddable
@@ -37,7 +38,7 @@ cdef class GridCoverSearcher:
     cdef public double [:, :] centroid_rfts
     cdef public object clusters
     cdef public RotatingRamifier ramifier
-    cdef public KDTree tree
+    cdef public object tree
 
     def __cinit__(self, box_side_len, ramifier, kmers, clusters):
         self.box_side_len = box_side_len
@@ -45,30 +46,29 @@ cdef class GridCoverSearcher:
         self.ramifier = ramifier
         self.kmers = kmers
         self.clusters = clusters
+        centroid_rfts = [] 
+        for i, centroid_rft in enumerate(clusters.keys()):
+            centroid_rfts.append(np.array(centroid_rft) * box_side_len)
+        self.centroid_rfts = np.array(centroid_rfts, dtype=float)
+        self.tree = cKDTree(self.centroid_rfts)
 
-        self.centroid_rfts = npc.ndarray((len(clusters), self.ramifier.d))
-        for i, centroid in enumerate(clusters.keys()):
-            kmer = reverse_convert_kmer(kmers[centroid])
-            rft = ramifier.c_ramify(kmer)
-            self.centroid_rfts[i] = rft
-        self.tree = KDTree(self.centroid_rfts)
-
-    cdef int [:] _coarse_search(str kmer, double search_radius, double eps=0.5):
-        double coarse_search_radius = search_radius + (eps * self.radius)
-        double [:] rft = self.ramifier.c_ramify(kemr)
-        int [:] centroid_hits = self.tree.query_ball_point(rft, coarse_search_radius, eps=0.1)
+    cpdef _coarse_search(self, str kmer, double search_radius, double eps=1.0):
+        cdef double coarse_search_radius = search_radius + (eps * self.radius)
+        cdef double [:] rft = self.ramifier.c_ramify(kmer)
+        centroid_hits = self.tree.query_ball_point(rft, coarse_search_radius, eps=0.1)
         return centroid_hits
 
-    cdef _fine_search(str query_kmer, int cluster):
+    cpdef _fine_search(self, str query_kmer, center):
         out = []
-        for member_index in self.clusters[cluster]:
+        key = tuple(np.floor(np.array(self.centroid_rfts[center]) / self.box_side_len))
+        for member_index in self.clusters[key]:
             kmer = reverse_convert_kmer(self.kmers[member_index])
             needle = needle_dist(query_kmer, kmer)
-            if needle < 0.2:
+            if needle < 1:
                 out.append(kmer)
         return out
 
-    cpdef search(str kmer, double search_radius, double eps=0.5):
+    cpdef search(self, str kmer, double search_radius, double eps=0.5):
         out = []
         for center in self._coarse_search(kmer, search_radius, eps=eps):
             out += self._fine_search(kmer, center)
@@ -77,8 +77,8 @@ cdef class GridCoverSearcher:
     @classmethod
     def from_dict(cls, saved):
         ramifier = RotatingRamifier.from_dict(saved['ramifier'])
-        kmers = np.array(saved_dict['kmer'], dtype=float)
-        clusters = {clust['centroid']: clust['members'] for clust in saved['clusters']}
-        searcher = cls(saved['radius'], ramifier, kmers)
+        kmers = np.array(saved['kmers'], dtype=int)
+        clusters = {tuple(clust['centroid']): clust['members'] for clust in saved['clusters']}
+        searcher = cls(saved['radius'], ramifier, kmers, clusters)
 
         return searcher

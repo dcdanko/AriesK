@@ -1,6 +1,8 @@
 
 import random
 
+from json import loads
+
 from os.path import join, dirname
 from unittest import TestCase
 from ariesk.utils import py_convert_kmer, py_reverse_convert_kmer
@@ -12,10 +14,12 @@ from ariesk.ram import (
     RotatingRamifier,
 )
 from ariesk.plaid_cover import PlaidCoverBuilder
+from ariesk.grid_cover import GridCoverBuilder
+from ariesk.searcher import GridCoverSearcher
 
 KMER_TABLE = join(dirname(__file__), 'small_31mer_table.csv')
 KMER_ROTATION = join(dirname(__file__), 'small_31mer_rotation.json')
-
+GRID_COVER = join(dirname(__file__), 'small_grid_cover.json')
 
 def random_kmer(k):
     return ''.join([random.choice('ATCG') for _ in range(k)])
@@ -38,12 +42,28 @@ class TestAriesK(TestCase):
             lambda: tree.add_kmer('ATCGATCGATCGATCGATCGATCGATCGATC')
         )
 
-    def test_encode_decode_kmer(self):
+    def test_encode_decode_one_kmer(self):
         kmer = 'ATCG'
         code = py_convert_kmer(kmer)
         print(code)
         decoded = py_reverse_convert_kmer(code)
         self.assertEqual(kmer, decoded)
+
+    def test_encode_decode_one_large_kmer(self):
+        kmer = 'ATCG' * 128
+        code = py_convert_kmer(kmer)
+        print(code)
+        decoded = py_reverse_convert_kmer(code)
+        self.assertEqual(kmer, decoded)
+
+    def test_encode_decode_many_kmers(self):
+        for _ in range(10):
+            for k in range(20, 40):
+                kmer = random_kmer(k)
+                code = py_convert_kmer(kmer)
+                print(code)
+                decoded = py_reverse_convert_kmer(code)
+                self.assertEqual(kmer, decoded)
 
     def test_ramify(self):
         ramifier = Ramifier(32)
@@ -87,7 +107,7 @@ class TestAriesK(TestCase):
             tree.add_kmer(random_kmer(31))
         tree.cluster_greedy()
         self.assertTrue(len(tree.clusters) < N)
-        self.assertTrue(0 < len(tree.clusters))
+        self.assertTrue(0 <= len(tree.clusters))
 
     def test_cluster_greedy_with_batch_twice(self):
         ramifier = RotatingRamifier.from_file(8, KMER_ROTATION)
@@ -126,3 +146,27 @@ class TestAriesK(TestCase):
         n_points = sum([len(cluster) for cluster in plaid.clusters.values()])
         self.assertLess(n_centers, 100)
         self.assertEqual(n_points, 100)
+
+    def test_build_grid_cover(self):
+        ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
+        grid = GridCoverBuilder(0.5, 100, ramifier)
+        grid.add_kmers_from_file(KMER_TABLE)
+        grid.cluster()
+        n_centers = len(grid.clusters.keys())
+        n_points = sum([len(cluster) for cluster in grid.clusters.values()])
+        self.assertLess(n_centers, 100)
+        self.assertEqual(n_points, 100)
+
+    def test_search_grid_cover_broad(self):
+        grid = GridCoverSearcher.from_dict(loads(open(GRID_COVER).read()))
+        query = 'AGGTTGAGTACGTCCGGAGGAGCGCGCCATG'
+        results = grid.search(query, 1)
+        self.assertIn(query, results)
+
+    def test_search_grid_cover_tight(self):
+        grid = GridCoverSearcher.from_dict(loads(open(GRID_COVER).read()))
+        query = 'AGGTTGAGTACGTCCGGAGGAGCGCGCCATG'
+        results = grid.search(query, 0.000001)
+        self.assertIn(query, results)
+        self.assertEqual(1, len(results))
+

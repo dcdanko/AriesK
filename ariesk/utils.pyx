@@ -8,6 +8,7 @@ def py_convert_kmer(kmer):
 def py_reverse_convert_kmer(kmer):
     return reverse_convert_kmer(kmer)
 
+
 cdef long convert_kmer(str kmer):
     cdef long out = 0
     for i, base in enumerate(kmer):
