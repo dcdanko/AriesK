@@ -1,6 +1,12 @@
 
-cimport numpy as npc
+import numpy as np
 
+
+def py_convert_kmer(kmer):
+    return convert_kmer(kmer)
+
+def py_reverse_convert_kmer(kmer):
+    return reverse_convert_kmer(kmer)
 
 cdef long convert_kmer(str kmer):
     cdef long out = 0
@@ -12,12 +18,12 @@ cdef long convert_kmer(str kmer):
             val = 2
         elif base == 'T':
             val = 3
-        out += val + (4 ** i) 
+        out += val * (4 ** i) 
     return out
 
 
 cdef str reverse_convert_kmer(long kmer):
-    cdef str base4 = npc.base_repr(kmer, base=4)
+    cdef str base4 = np.base_repr(kmer, base=4)
     cdef str out = ''
     for code in base4[::-1]:
         if code == '0':
