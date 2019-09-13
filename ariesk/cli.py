@@ -1,6 +1,8 @@
 import click
 import pandas as pd
 
+import socket
+
 from random import shuffle
 from time import time
 from json import dumps, loads
@@ -151,3 +153,30 @@ def build_kdrft_cluster(radius, kmer_len, num_kmers, outfile, kmer_table):
     click.echo(tree.stats(), err=True)
     cover_as_dict = tree.to_dict()
     print(dumps(cover_as_dict), file=outfile)
+
+
+@main.command('search')
+@click.option('-p', '--port', default=50007)
+@click.argument('kmer')
+def search(port, kmer):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect(('localhost', port))
+        s.sendall(kmer.encode('utf-8'))
+        #data = s.recv(1024)
+        #print('Received', repr(data))
+
+
+@main.command('search-server')
+@click.option('-p', '--port', default=50007)
+def run_search_server(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('localhost', port))
+        s.listen(1)
+        print(f'Listening on port {port}')
+        conn, addr = s.accept()
+        with conn:
+            print('Connected by', addr)
+            while True:
+                kmer = conn.recv(1024)
+                if not kmer: break
+                print(kmer)
