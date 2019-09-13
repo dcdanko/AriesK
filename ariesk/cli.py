@@ -112,9 +112,9 @@ def merge_grid_cover(outfile, grid_covers):
         for cluster in grid_cover['clusters']:
             centroid = tuple(cluster['centroid'])
             members = [el + len(out['kmers']) for el in cluster['members']]
-            clusters.get(centroid, []).append(members)
+            clusters[centroid] = clusters.get(centroid, []) + members
 
-    n_centers = len(grid.clusters.keys())
+    n_centers = len(clusters.keys())
     for centroid, members in clusters.items():
         out['clusters'].append({
             'centroid': centroid,
