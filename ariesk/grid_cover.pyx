@@ -53,7 +53,7 @@ cdef class GridCoverBuilder(KmerAddable):
     def to_dict(self):
         out = {
             'type': 'grid_cover',
-            'radius': self.box_side_len,
+            'box_side_length': self.box_side_len,
             'ramifier': {
                 'k': self.ramifier.k,
                 'd': self.ramifier.d,

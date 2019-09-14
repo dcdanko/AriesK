@@ -31,11 +31,12 @@ def cli_dump_kmers(grid_cover):
 
 
 @stats_cli.command('dump-kmers')
+@click.option('-o', '--outfile', default='-', type=click.File('w'))
 @click.argument('grid_cover', type=click.File('r'))
-def cli_dump_kmers(grid_cover):
+def cli_dump_kmers(outfile, grid_cover):
     grid = GridCoverSearcher.from_dict(loads(grid_cover.read()))
     for kmer in grid.kmers:
-        click.echo(py_reverse_convert_kmer(kmer))
+        print(py_reverse_convert_kmer(kmer), file=outfile)
 
 
 @stats_cli.command('dump-centroids')

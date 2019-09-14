@@ -82,6 +82,6 @@ cdef class GridCoverSearcher:
         ramifier = RotatingRamifier.from_dict(saved['ramifier'])
         kmers = np.array(saved['kmers'], dtype=int)
         clusters = {tuple(clust['centroid']): clust['members'] for clust in saved['clusters']}
-        searcher = cls(saved['radius'], ramifier, kmers, clusters)
+        searcher = cls(saved['box_side_length'], ramifier, kmers, clusters)
 
         return searcher
