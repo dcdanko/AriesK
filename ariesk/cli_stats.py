@@ -6,6 +6,7 @@ from json import dumps, loads
 from time import clock
 
 from ariesk.searcher import GridCoverSearcher
+from ariesk.db import GridCoverDB
 from .utils import py_reverse_convert_kmer
 
 
@@ -34,14 +35,14 @@ def cli_dump_kmers(grid_cover):
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
 @click.argument('grid_cover', type=click.File('r'))
 def cli_dump_kmers(outfile, grid_cover):
-    grid = GridCoverSearcher.from_dict(loads(grid_cover.read()))
+    grid = GridCoverDB.from_filepath(grid_cover)
     for kmer in grid.kmers:
         print(py_reverse_convert_kmer(kmer), file=outfile)
 
 
 @stats_cli.command('dump-centroids')
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
-@click.argument('grid_cover', type=click.File('r'))
+@click.argument('grid_cover', type=click.Path())
 def cli_dump_kmers(outfile, grid_cover):
-    grid = GridCoverSearcher.from_dict(loads(grid_cover.read()))
+    grid = GridCoverDB.from_filepath(grid_cover)
     pd.DataFrame(grid.centroids()).to_csv(outfile, header=None, index=None)

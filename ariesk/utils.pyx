@@ -42,6 +42,30 @@ cdef str reverse_convert_kmer(long [:] encoded):
     return out
 
 
+cdef double needle_dist(k1, k2):
+    cdef double [:, :] score = np.zeros((len(k1) + 1, len(k2) + 1))
+    cdef double match_score = 0
+    cdef double mismatch_penalty = 1.5
+    cdef double gap_penalty = 1.6
+    for i in range(len(k1) + 1):
+        score[i][0] = gap_penalty * i
+    for j in range(len(k2) + 1):
+        score[0][j] = gap_penalty * j
+
+    def _match_score(b1, b2):
+        return match_score if b1 == b2 else mismatch_penalty
+
+    for i in range(1, len(k1) + 1):
+        for j in range(1, len(k2) + 1):
+            match = score[i - 1][j - 1] + _match_score(k1[i - 1], k2[j - 1])
+            delete = score[i - 1][j] + gap_penalty
+            insert = score[i][j - 1] + gap_penalty
+            score[i][j] = min(match, delete, insert)
+    final_score = score[len(k1)][len(k2)]
+
+    return final_score / len(k1)
+
+
 cdef class KmerAddable:
 
     cpdef add_kmer(self, str kmer):

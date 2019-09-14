@@ -5,50 +5,27 @@ from cython.parallel import prange
 
 from .utils cimport convert_kmer, KmerAddable
 from .ram cimport RotatingRamifier
+from .db cimport GridCoverDB
 
 
 cdef class GridCoverBuilder(KmerAddable):
     cdef public RotatingRamifier ramifier
-    cdef public float box_side_len
-    cdef public long [:, :] kmers
-    cdef public double [:, :] rfts
-    cdef public object clusters
-    cdef public int threads
+    cdef public db GridCoverDB
 
-    def __cinit__(self, box_side_len, max_size, ramifier, threads=1):
-        self.box_side_len = box_side_len
+    def __cinit__(self, db, box_side_len, ramifier):
+        self.db
+        self.db.box_side_len = box_side_len
         self.ramifier = ramifier
-        self.max_size = max_size
         self.num_kmers_added = 0
-        self.kmers = npc.ndarray((self.max_size, self.ramifier.k), dtype=long)
-        self.rfts = npc.ndarray((self.max_size, self.ramifier.d))
-        self.threads = threads
-
-        self.clusters = {}
 
     cpdef add_kmer(self, str kmer):
         assert self.num_kmers_added < self.max_size
-        cdef double [:] rft = self.ramifier.c_ramify(kmer)
-        self.kmers[self.num_kmers_added] = convert_kmer(kmer, self.ramifier.k)
-        self.rfts[self.num_kmers_added] = rft
+        cdef double [:] centroid_rft = np.floor(self.ramifier.c_ramify(kmer) / self.db.box_side_len)
+        self.db.add_point_to_cluster(centroid_rft, kmer)
         self.num_kmers_added += 1
 
     cpdef cluster(self):
-        cdef long [:, :] Y = npc.ndarray((self.num_kmers_added, self.ramifier.d), dtype=long)
-        cdef int i, j
-        for j in range(self.ramifier.d):
-            for i in range(self.num_kmers_added):
-                Y[i, j] = np.floor(self.rfts[i, j] / self.box_side_len)
-        '''
-        At this point Y contains N unique points where N <= self.num_kmers_added
-
-        The values of each point are the index of the 'centroid' in each
-        dimension. Centroid in quotes because each point in Y actually 
-        has D centroids which collectively define a box.
-        '''
-        for i in range(self.num_kmers_added):
-            point = tuple(Y[i, :])
-            self.clusters[point] = [i] + self.clusters.get(point, [])
+        self.db.close()
 
     def to_dict(self):
         out = {
