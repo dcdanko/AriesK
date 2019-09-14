@@ -10,7 +10,7 @@ from .ram cimport RotatingRamifier
 cdef class GridCoverBuilder(KmerAddable):
     cdef public RotatingRamifier ramifier
     cdef public float box_side_len
-    cdef public long [:] kmers
+    cdef public long [:, :] kmers
     cdef public double [:, :] rfts
     cdef public object clusters
     cdef public int threads
@@ -20,7 +20,7 @@ cdef class GridCoverBuilder(KmerAddable):
         self.ramifier = ramifier
         self.max_size = max_size
         self.num_kmers_added = 0
-        self.kmers = npc.ndarray((self.max_size,), dtype=long)
+        self.kmers = npc.ndarray((self.max_size, self.ramifier.k), dtype=long)
         self.rfts = npc.ndarray((self.max_size, self.ramifier.d))
         self.threads = threads
 
@@ -28,9 +28,8 @@ cdef class GridCoverBuilder(KmerAddable):
 
     cpdef add_kmer(self, str kmer):
         assert self.num_kmers_added < self.max_size
-        cdef long kmer_code = convert_kmer(kmer)
         cdef double [:] rft = self.ramifier.c_ramify(kmer)
-        self.kmers[self.num_kmers_added] = kmer_code
+        self.kmers[self.num_kmers_added] = convert_kmer(kmer, self.ramifier.k)
         self.rfts[self.num_kmers_added] = rft
         self.num_kmers_added += 1
 

@@ -14,9 +14,33 @@ def stats_cli():
     pass
 
 
+@stats_cli.command('cover-stats')
+@click.argument('grid_cover', type=click.File('r'))
+def cli_dump_kmers(grid_cover):
+    grid = GridCoverSearcher.from_dict(loads(grid_cover.read()))
+    n_centers = len(grid.clusters.keys())
+    click.echo(f'centers\t{n_centers}')
+    n_kmers = sum([len(val) for val in grid.clusters.values()])
+    click.echo(f'kmers\t{n_kmers}')
+    box_side = grid.box_side_len
+    click.echo(f'box_side\t{box_side}')
+    radius = grid.radius
+    click.echo(f'radius\t{radius}')
+    dims = grid.ramifier.d
+    click.echo(f'dims\t{dims}')
+
+
 @stats_cli.command('dump-kmers')
 @click.argument('grid_cover', type=click.File('r'))
 def cli_dump_kmers(grid_cover):
     grid = GridCoverSearcher.from_dict(loads(grid_cover.read()))
     for kmer in grid.kmers:
         click.echo(py_reverse_convert_kmer(kmer))
+
+
+@stats_cli.command('dump-centroids')
+@click.option('-o', '--outfile', default='-', type=click.File('w'))
+@click.argument('grid_cover', type=click.File('r'))
+def cli_dump_kmers(outfile, grid_cover):
+    grid = GridCoverSearcher.from_dict(loads(grid_cover.read()))
+    pd.DataFrame(grid.centroids()).to_csv(outfile, header=None, index=None)

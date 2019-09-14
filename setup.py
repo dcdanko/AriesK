@@ -11,13 +11,6 @@ extra_link_args = ['-fopenmp']
 
 extensions = [
     Extension(
-        'ariesk.rft_kdtree',
-        ['ariesk/rft_kdtree.pyx'],
-        include_dirs=[numpy.get_include()],
-        extra_compile_args=extra_compile_args,
-        language='c++',
-    ),
-    Extension(
         'ariesk.dists',
         ['ariesk/dists.pyx'],
         include_dirs=[numpy.get_include()],
@@ -29,14 +22,6 @@ extensions = [
         ['ariesk/ram.pyx'],
         include_dirs=[numpy.get_include()],
         extra_compile_args=extra_compile_args,
-        language='c++',
-    ),
-    Extension(
-        'ariesk.plaid_cover',
-        ['ariesk/plaid_cover.pyx'],
-        include_dirs=[numpy.get_include()],
-        extra_compile_args=extra_compile_args,
-        extra_link_args=extra_link_args,
         language='c++',
     ),
     Extension(

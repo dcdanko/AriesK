@@ -1,16 +1,17 @@
 
 import numpy as np
+cimport numpy as npc
 
 
 def py_convert_kmer(kmer):
-    return convert_kmer(kmer)
+    return convert_kmer(kmer, len(kmer))
 
 def py_reverse_convert_kmer(kmer):
     return reverse_convert_kmer(kmer)
 
 
-cdef long convert_kmer(str kmer):
-    cdef long out = 0
+cdef long [:] convert_kmer(str kmer, int k):
+    cdef long [:] encoded = np.ndarray((k,), dtype=long)
     for i, base in enumerate(kmer):
         val = 0
         if base == 'C':
@@ -19,22 +20,25 @@ cdef long convert_kmer(str kmer):
             val = 2
         elif base == 'T':
             val = 3
-        out += val * (4 ** i) 
-    return out
+        elif base == 'A':
+            val = 4
+        encoded[i] = val
+    return encoded
 
 
-cdef str reverse_convert_kmer(long kmer):
-    cdef str base4 = np.base_repr(kmer, base=4)
+cdef str reverse_convert_kmer(long [:] encoded):
     cdef str out = ''
-    for code in base4[::-1]:
-        if code == '0':
-            out += 'A'
-        elif code == '1':
+    for code in encoded:
+        if code == 0:
+            out += 'N'
+        elif code == 1:
             out += 'C'
-        elif code == '2':
+        elif code == 2:
             out += 'G'
-        else:
+        elif code == 3:
             out += 'T'
+        else:
+            out += 'A'
     return out
 
 

@@ -10,7 +10,6 @@ from json import dumps, loads
 from gimmebio.sample_seqs import EcoliGenome
 from gimmebio.kmers import make_kmers
 
-from ariesk.rft_kdtree import RftKdTree
 from ariesk.dists import DistanceFactory
 from ariesk.searcher import GridCoverSearcher
 
@@ -19,7 +18,6 @@ from ariesk.ram import (
     StatisticalRam,
     RotatingRamifier,
 )
-from ariesk.plaid_cover import PlaidCoverBuilder
 from ariesk.grid_cover import GridCoverBuilder
 
 from .cli_dev import dev_cli
@@ -53,33 +51,11 @@ def calculate_pca_rotation(kmer_len, num_kmers, outfile, kmer_table):
     outfile.write(dumps(out))
 
 
-@main.command('build-plaid')
-@click.option('-r', '--radius', default=1.0, type=float)
-@click.option('-d', '--dimension', default=8)
-@click.option('-n', '--num-kmers', default=1000, help='Number of kmers to cluster.')
-@click.option('-o', '--outfile', default='-', type=click.File('w'))
-@click.argument('rotation', type=click.Path())
-@click.argument('kmer_table', type=click.Path())
-def build_plaid_cover(radius, dimension, num_kmers, outfile, rotation, kmer_table):
-    ramifier = RotatingRamifier.from_file(dimension, rotation)
-    plaid = PlaidCoverBuilder(radius, num_kmers, ramifier)
-    plaid.add_kmers_from_file(kmer_table)
-    click.echo(f'Added {num_kmers} kmers to cover.', err=True)
-
-    start = time()
-    plaid.cluster()
-    cluster_time = time() - start
-    n_centers = len(plaid.clusters.keys())
-    click.echo(f'Built plaid cover in {cluster_time:.5}s. {n_centers} clusters.', err=True)
-
-    outfile.write(dumps(plaid.to_dict()))
-
-
 @main.command('build-grid')
 @click.option('-r', '--radius', default=0.02, type=float)
 @click.option('-d', '--dimension', default=8)
 @click.option('-n', '--num-kmers', default=1000, help='Number of kmers to cluster.')
-@click.option('-s', '--start-offset', default=1000)
+@click.option('-s', '--start-offset', default=0)
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
 @click.argument('rotation', type=click.Path())
 @click.argument('kmer_table', type=click.Path())
@@ -129,34 +105,6 @@ def merge_grid_cover(outfile, grid_covers):
         })
     click.echo(f'Merged grid covers. {n_centers:,} clusters.', err=True)
     outfile.write(dumps(out))
-
-
-@main.command('build-tree')
-@click.option('-r', '--radius', default=0.1)
-@click.option('-k', '--kmer-len', default=31)
-@click.option('-n', '--num-kmers', default=1000, help='Number of kmers to cluster.')
-@click.option('-o', '--outfile', default='-', type=click.File('w'))
-@click.argument('kmer_table', type=click.File('r'))
-def build_kdrft_cluster(radius, kmer_len, num_kmers, outfile, kmer_table):
-    tree = RftKdTree(radius, kmer_len, num_kmers)
-
-    start = time()
-    for i, line in enumerate(kmer_table):
-        if i >= num_kmers:
-            break
-        kmer = line.strip().split(',')[0]
-        tree.add_kmer(kmer)
-    add_time = time() - start
-    click.echo(f'Added {num_kmers} kmers to cover in {add_time:.5}s.', err=True)
-
-    start = time()
-    tree.cluster_greedy(logger=lambda el: click.echo(el, err=True))
-    cluster_time = time() - start
-    click.echo(f'Clustered tree in {cluster_time:.5}s.', err=True)
-
-    click.echo(tree.stats(), err=True)
-    cover_as_dict = tree.to_dict()
-    print(dumps(cover_as_dict), file=outfile)
 
 
 @main.command('search')

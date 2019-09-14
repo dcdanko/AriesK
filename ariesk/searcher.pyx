@@ -33,7 +33,7 @@ cdef double needle_dist(k1, k2):
 
 
 cdef class GridCoverSearcher:
-    cdef public long [:] kmers
+    cdef public long [:, :] kmers
     cdef public float box_side_len, radius
     cdef public double [:, :] centroid_rfts
     cdef public object clusters
@@ -42,7 +42,7 @@ cdef class GridCoverSearcher:
 
     def __cinit__(self, box_side_len, ramifier, kmers, clusters):
         self.box_side_len = box_side_len
-        self.radius = (ramifier.d ** (1/2)) * box_side_len
+        self.radius = (ramifier.d ** (0.5)) * box_side_len
         self.ramifier = ramifier
         self.kmers = kmers
         self.clusters = clusters
@@ -52,10 +52,10 @@ cdef class GridCoverSearcher:
         self.centroid_rfts = np.array(centroid_rfts, dtype=float)
         self.tree = cKDTree(self.centroid_rfts)
 
-    cpdef _coarse_search(self, str kmer, double search_radius, double eps=1.0):
+    cpdef _coarse_search(self, str kmer, double search_radius, double eps=1.01):
         cdef double coarse_search_radius = search_radius + (eps * self.radius)
         cdef double [:] rft = self.ramifier.c_ramify(kmer)
-        centroid_hits = self.tree.query_ball_point(rft, coarse_search_radius, eps=0.1)
+        centroid_hits = self.tree.query_ball_point(rft, coarse_search_radius)
         return centroid_hits
 
     cpdef _fine_search(self, str query_kmer, center):
@@ -68,11 +68,14 @@ cdef class GridCoverSearcher:
                 out.append(kmer)
         return out
 
-    cpdef search(self, str kmer, double search_radius, double eps=0.5):
+    cpdef search(self, str kmer, double search_radius, double eps=1.01):
         out = []
         for center in self._coarse_search(kmer, search_radius, eps=eps):
             out += self._fine_search(kmer, center)
         return out
+
+    def centroids(self):
+        return np.array(self.centroid_rfts)
 
     @classmethod
     def from_dict(cls, saved):
