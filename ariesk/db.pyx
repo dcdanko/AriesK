@@ -5,17 +5,25 @@ import numpy as np
 from .ram cimport RotatingRamifier
 
 
+cdef simple_list(sql_cursor):
+    return [el[0] for el in sql_cursor]
+
+
 cdef class GridCoverDB:
 
-    def __cinit__(self, conn):
+    def __cinit__(self, conn, ramifier=None):
         self.conn = conn
         self.cursor = self.conn.cursor()
-        self.cursor.execute('CREATE TABLE basics (name text, value text)')
-        self.cursor.execute('CREATE TABLE kmers (centroid_id int, seq text)')
-        self.cursor.execute('CREATE TABLE centroids (centroid_id int, vals text)')
+        self.cursor.execute('CREATE TABLE IF NOT EXISTS basics (name text, value text)')
+        self.cursor.execute('CREATE TABLE IF NOT EXISTS kmers (centroid_id int, seq text)')
+        self.cursor.execute('CREATE TABLE IF NOT EXISTS centroids (centroid_id int, vals text)')
 
         self.centroid_cache = {}
-        # self.ramifier = self.load_ramifier()
+        if ramifier is None:
+            self.ramifier = self.load_ramifier()
+        else:
+            self.ramifier = ramifier
+            self.save_ramifier()
 
     cpdef get_cluster_members(self, centroid_id):
         """Retrieve the members of a cluster. 
@@ -23,7 +31,7 @@ cdef class GridCoverDB:
         Called often during search, wrapped with cache.
         """
         vals = self.cursor.execute('SELECT seq FROM kmers WHERE centroid_id=?', (centroid_id,))
-        return [el[0] for el in list(vals)]
+        return simple_list(vals)
 
     cpdef add_point_to_cluster(self, centroid, str kmer):
         """Store a new point in the db. centroid is not assumed to exist.
@@ -45,10 +53,10 @@ cdef class GridCoverDB:
 
         Called just once on database load.
         """
-        centroid_strs = self.cursor.execute('SELECT * FROM centroids')
-        cdef double [:, :] centroids = np.ndarray((len(centroid_strs), self.d))
-        for i, centroid_str in enumerate(centroid_strs):
-            for j, val in centroid_str.split(','):
+        centroid_strs = list(self.cursor.execute('SELECT * FROM centroids'))
+        cdef double [:, :] centroids = np.ndarray((len(centroid_strs), self.ramifier.d))
+        for i, centroid_str in centroid_strs:
+            for j, val in enumerate(centroid_str.split(',')):
                 centroids[i, j] = float(val)
         return centroids
 
@@ -57,17 +65,36 @@ cdef class GridCoverDB:
         self.conn.commit()
         self.conn.close()
 
-    cdef RotatingRamifier load_ramifier(self):
-        k = int(self.cursor.execute('SELECT value FROM basics WHERE name="k"').fetchone())
-        d = int(self.cursor.execute('SELECT value FROM basics WHERE name="d"'))
+    cdef save_ramifier(self):
+        stringify = lambda M: ','.join([str(el) for el in M])
+        self.cursor.executemany(
+            'INSERT INTO basics VALUES (?,?)',
+            [
+                ('k', str(self.ramifier.k)),
+                ('d', str(self.ramifier.d)),
+                ('center', stringify(self.ramifier.center)),
+                ('scale', stringify(self.ramifier.scale)),
+                ('rotation', stringify(np.array(self.ramifier.rotation).flatten())),
+            ]
+        )
 
-        center_str = int(self.cursor.execute('SELECT value FROM basics WHERE name="center"'))
-        center = np.array([float(el) for el in ','.split(center_str)])
-        scale_str = int(self.cursor.execute('SELECT value FROM basics WHERE name="scale"'))
-        scale = np.array([float(el) for el in ','.split(scale_str)])
-        rotate_str = int(self.cursor.execute('SELECT value FROM basics WHERE name="rotation"'))
-        rotation = np.array([float(el) for el in ','.split(rotate_str)])
-        rotation = np.reshape(rotation, (k, k))
+    cdef RotatingRamifier load_ramifier(self):
+
+        def get_basic(key):
+            val = self.cursor.execute('SELECT value FROM basics WHERE name=?', (key,))
+            return val.fetchone()[0]
+
+        def numpify(key):
+            val = get_basic(key)
+            return np.array([float(el) for el in val.split(',')])
+
+        k = int(get_basic('k'))
+        d = int(get_basic('d'))
+        center = numpify('center')
+        scale = numpify('scale')
+        rotation = numpify('rotation')
+        rotation = np.reshape(rotation, (4 * k, 4 * k))
+
         return RotatingRamifier(k, d, rotation, center, scale)
 
     @classmethod
@@ -77,4 +104,4 @@ cdef class GridCoverDB:
         return GridCoverDB(connection)
 
     def centroids(self):
-        return np.array(self.get_centroids())
+        return np.array(self.c_get_centroids())
