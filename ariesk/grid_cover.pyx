@@ -33,24 +33,3 @@ cdef class GridCoverBuilder(KmerAddable):
     def from_filepath(cls, filepath, ramifier, box_side_len):
         db = GridCoverDB(sqlite3.connect(filepath), ramifier=ramifier, box_side_len=box_side_len)
         return cls(db)
-
-    def to_dict(self):
-        out = {
-            'type': 'grid_cover',
-            'box_side_length': self.box_side_len,
-            'ramifier': {
-                'k': self.ramifier.k,
-                'd': self.ramifier.d,
-                'center': np.asarray(self.ramifier.center).tolist(),
-                'scale': np.asarray(self.ramifier.scale).tolist(),
-                'rotation': np.asarray(self.ramifier.rotation).tolist(),
-            },
-            'kmers': np.asarray(self.kmers).tolist(),
-            'clusters': [],
-        }
-        for centroid, members in self.clusters.items():
-            out['clusters'].append({
-                'centroid': centroid,
-                'members': members,
-            })
-        return out

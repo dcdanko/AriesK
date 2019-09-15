@@ -76,36 +76,6 @@ def build_grid_cover(radius, dimension, num_kmers, start_offset, outfile, rotati
     grid.close()
 
 
-@main.command('merge-grid')
-@click.option('-o', '--outfile', default='-', type=click.File('w'))
-@click.argument('grid_covers', nargs=-1, type=click.File('r'))
-def merge_grid_cover(outfile, grid_covers):
-    first = loads(grid_covers[0].read())
-    out = {
-        'type': 'grid_cover',
-        'radius': first['radius'],
-        'ramifier': first['ramifier'],
-        'kmers': first['kmers'],
-        'clusters': []
-    }
-    clusters = {tuple(cluster['centroid']): cluster['members'] for cluster in first['clusters']}
-    for grid_cover in grid_covers[1:]:
-        grid_cover = loads(grid_cover.read())
-        for cluster in grid_cover['clusters']:
-            centroid = tuple(cluster['centroid'])
-            members = [el + len(out['kmers']) for el in cluster['members']]
-            clusters[centroid] = clusters.get(centroid, []) + members
-
-    n_centers = len(clusters.keys())
-    for centroid, members in clusters.items():
-        out['clusters'].append({
-            'centroid': centroid,
-            'members': members,
-
-        })
-    click.echo(f'Merged grid covers. {n_centers:,} clusters.', err=True)
-    outfile.write(dumps(out))
-
 
 @main.command('search')
 @click.option('-p', '--port', default=50007)
@@ -115,15 +85,13 @@ def search(port, radius, kmer):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect(('localhost', port))
         s.sendall(f'{kmer} {radius}'.encode('utf-8'))
-        #data = s.recv(1024)
-        #print('Received', repr(data))
 
 
 @main.command('search-server')
 @click.option('-p', '--port', default=50007)
-@click.argument('grid_cover', type=click.File('r'))
+@click.argument('grid_cover', type=click.Path())
 def run_search_server(port, grid_cover):
-    grid = GridCoverSearcher.from_dict(loads(grid_cover.read()))
+    grid = GridCoverSearcher.from_filepath(grid_cover)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(('localhost', port))
         s.listen(1)
@@ -131,7 +99,6 @@ def run_search_server(port, grid_cover):
         while True:
             conn, addr = s.accept()
             with conn:
-                # print('Connected by', addr)
                 while True:
                     data = conn.recv(1024).decode('utf-8')
                     if not data: break
