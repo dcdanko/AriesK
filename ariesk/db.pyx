@@ -11,7 +11,7 @@ cdef simple_list(sql_cursor):
 
 cdef class GridCoverDB:
 
-    def __cinit__(self, conn, ramifier=None):
+    def __cinit__(self, conn, ramifier=None, box_side_len=None):
         self.conn = conn
         self.cursor = self.conn.cursor()
         self.cursor.execute('CREATE TABLE IF NOT EXISTS basics (name text, value text)')
@@ -21,9 +21,21 @@ cdef class GridCoverDB:
         self.centroid_cache = {}
         if ramifier is None:
             self.ramifier = self.load_ramifier()
+            self.box_side_len = float(self.cursor.execute(
+                    'SELECT value FROM basics WHERE name=?', ('box_side_len',)
+            ).fetchone()[0])
         else:
+            assert box_side_len is not None
+            self.box_side_len = box_side_len
+            self.cursor.execute(
+                'INSERT INTO basics VALUES (?,?)',
+                ('box_side_len', box_side_len)
+            )
             self.ramifier = ramifier
             self.save_ramifier()
+
+    cpdef get_kmers(self):
+        return list(self.cursor.execute('SELECT * FROM kmers'))
 
     cpdef get_cluster_members(self, centroid_id):
         """Retrieve the members of a cluster. 
@@ -60,10 +72,14 @@ cdef class GridCoverDB:
                 centroids[i, j] = float(val)
         return centroids
 
-    cpdef close(self):
+    def close(self):
         """Close the DB and flush data to disk."""
         self.conn.commit()
         self.conn.close()
+
+    def commit(self):
+        """Flush data to disk."""
+        self.conn.commit()
 
     cdef save_ramifier(self):
         stringify = lambda M: ','.join([str(el) for el in M])

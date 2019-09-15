@@ -12,10 +12,9 @@ cdef class GridCoverBuilder(KmerAddable):
     cdef public RotatingRamifier ramifier
     cdef public GridCoverDB db
 
-    def __cinit__(self, db, box_side_len, ramifier):
-        self.db
-        self.db.box_side_len = box_side_len
-        self.ramifier = ramifier
+    def __cinit__(self, db):
+        self.db = db
+        self.ramifier = db.ramifier
         self.num_kmers_added = 0
 
     cpdef add_kmer(self, str kmer):
@@ -24,7 +23,10 @@ cdef class GridCoverBuilder(KmerAddable):
         self.db.add_point_to_cluster(centroid_rft, kmer)
         self.num_kmers_added += 1
 
-    cpdef cluster(self):
+    def commit(self):
+        self.db.commit()
+
+    def close(self):
         self.db.close()
 
     def to_dict(self):
