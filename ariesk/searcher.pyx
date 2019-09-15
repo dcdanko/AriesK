@@ -22,8 +22,8 @@ cdef class GridCoverSearcher:
     cdef public object tree
 
     def __cinit__(self, grid_cover_db):
-        self.db = db
-        self.radius = (ramifier.d ** (0.5)) * self.db.box_side_len
+        self.db = grid_cover_db
+        self.radius = (self.db.ramifier.d ** (0.5)) * self.db.box_side_len
         self.ramifier = self.db.get_ramifier()
         self.centroid_rfts = self.db.get_centroids()
         self.tree = cKDTree(self.centroid_rfts)

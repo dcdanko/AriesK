@@ -10,7 +10,7 @@ from .db cimport GridCoverDB
 
 cdef class GridCoverBuilder(KmerAddable):
     cdef public RotatingRamifier ramifier
-    cdef public db GridCoverDB
+    cdef public GridCoverDB db
 
     def __cinit__(self, db, box_side_len, ramifier):
         self.db
