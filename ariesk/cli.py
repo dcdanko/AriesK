@@ -54,26 +54,26 @@ def calculate_pca_rotation(kmer_len, num_kmers, outfile, kmer_table):
 @main.command('build-grid')
 @click.option('-r', '--radius', default=0.02, type=float)
 @click.option('-d', '--dimension', default=8)
-@click.option('-n', '--num-kmers', default=1000, help='Number of kmers to cluster.')
+@click.option('-n', '--num-kmers', default=0, help='Number of kmers to cluster.')
 @click.option('-s', '--start-offset', default=0)
-@click.option('-o', '--outfile', default='-', type=click.File('w'))
+@click.option('-o', '--outfile', default='ariesk_grid_cover_db.sqlite', type=click.Path())
 @click.argument('rotation', type=click.Path())
 @click.argument('kmer_table', type=click.Path())
 def build_grid_cover(radius, dimension, num_kmers, start_offset, outfile, rotation, kmer_table):
     ramifier = RotatingRamifier.from_file(dimension, rotation)
-    grid = GridCoverBuilder(radius, num_kmers, ramifier)
+    grid = GridCoverBuilder.from_filepath(outfile, ramifier, radius)
     start = time()
-    grid.add_kmers_from_file(kmer_table, start=start_offset)
+    grid.add_kmers_from_file(kmer_table, start=start_offset, num_to_add=num_kmers)
     add_time = time() - start
     click.echo(f'Added {num_kmers:,} kmers to cover in {add_time:.5}s.', err=True)
 
     start = time()
-    grid.cluster()
+    grid.commit()
     cluster_time = time() - start
-    n_centers = len(grid.clusters.keys())
+    n_centers = grid.db.centroids().shape[0]
     click.echo(f'Built grid cover in {cluster_time:.5}s. {n_centers:,} clusters.', err=True)
 
-    outfile.write(dumps(grid.to_dict()))
+    grid.close()
 
 
 @main.command('merge-grid')

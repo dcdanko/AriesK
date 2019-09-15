@@ -33,16 +33,16 @@ def cli_dump_kmers(grid_cover):
 
 @stats_cli.command('dump-kmers')
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
-@click.argument('grid_cover', type=click.File('r'))
+@click.argument('grid_cover', type=click.Path())
 def cli_dump_kmers(outfile, grid_cover):
-    grid = GridCoverDB.from_filepath(grid_cover)
-    for kmer in grid.kmers:
-        print(py_reverse_convert_kmer(kmer), file=outfile)
+    grid = GridCoverDB.load_from_filepath(grid_cover)
+    for centroid_index, kmer in grid.get_kmers():
+        print(kmer, file=outfile)
 
 
 @stats_cli.command('dump-centroids')
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
 @click.argument('grid_cover', type=click.Path())
 def cli_dump_kmers(outfile, grid_cover):
-    grid = GridCoverDB.from_filepath(grid_cover)
+    grid = GridCoverDB.load_from_filepath(grid_cover)
     pd.DataFrame(grid.centroids()).to_csv(outfile, header=None, index=None)

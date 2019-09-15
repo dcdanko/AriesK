@@ -75,12 +75,14 @@ cdef class KmerAddable:
         for kmer in kmers:
             self.add_kmer(kmer)
 
-    def add_kmers_from_file(self, str filename, sep=',', start=0):
+    def add_kmers_from_file(self, str filename, sep=',', start=0, num_to_add=0):
         with open(filename) as f:
+            n_added = 0
             for i, line in enumerate(f):
                 if i < start:
                     continue
-                if (i - start) >= self.max_size:
+                n_added += 1
+                if num_to_add > 0 and n_added > num_to_add:
                     break
                 kmer = line.split(sep)[0]
                 self.add_kmer(kmer)

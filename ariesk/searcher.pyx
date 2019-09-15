@@ -24,8 +24,8 @@ cdef class GridCoverSearcher:
     def __cinit__(self, grid_cover_db):
         self.db = grid_cover_db
         self.radius = (self.db.ramifier.d ** (0.5)) * self.db.box_side_len
-        self.ramifier = self.db.get_ramifier()
-        self.centroid_rfts = self.db.get_centroids()
+        self.ramifier = self.db.ramifier
+        self.centroid_rfts = self.db.c_get_centroids()
         self.tree = cKDTree(self.centroid_rfts)
 
     cpdef _coarse_search(self, str kmer, double search_radius, double eps=1.01):
@@ -51,4 +51,4 @@ cdef class GridCoverSearcher:
 
     @classmethod
     def from_filepath(cls, filepath):
-        cls(GridCoverDB.load_from_filepath(filepath))
+        return cls(GridCoverDB.load_from_filepath(filepath))

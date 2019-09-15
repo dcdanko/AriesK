@@ -1,4 +1,5 @@
 import numpy as np
+import sqlite3
 cimport numpy as npc
 
 from cython.parallel import prange
@@ -18,7 +19,6 @@ cdef class GridCoverBuilder(KmerAddable):
         self.num_kmers_added = 0
 
     cpdef add_kmer(self, str kmer):
-        assert self.num_kmers_added < self.max_size
         cdef double [:] centroid_rft = np.floor(self.ramifier.c_ramify(kmer) / self.db.box_side_len)
         self.db.add_point_to_cluster(centroid_rft, kmer)
         self.num_kmers_added += 1
@@ -28,6 +28,11 @@ cdef class GridCoverBuilder(KmerAddable):
 
     def close(self):
         self.db.close()
+
+    @classmethod
+    def from_filepath(cls, filepath, ramifier, box_side_len):
+        db = GridCoverDB(sqlite3.connect(filepath), ramifier=ramifier, box_side_len=box_side_len)
+        return cls(db)
 
     def to_dict(self):
         out = {

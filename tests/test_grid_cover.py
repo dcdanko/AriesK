@@ -13,7 +13,7 @@ from ariesk.db import GridCoverDB
 
 KMER_TABLE = join(dirname(__file__), 'small_31mer_table.csv')
 KMER_ROTATION = join(dirname(__file__), '../data/rotation_minikraken.json')
-GRID_COVER = join(dirname(__file__), 'small_grid_cover.json')
+GRID_COVER = join(dirname(__file__), 'small_grid_cover.sqlite')
 
 
 class TestGridCover(TestCase):
@@ -31,20 +31,20 @@ class TestGridCover(TestCase):
         self.assertEqual(n_points, 100)
 
     def test_one_search_grid_cover_broad(self):
-        grid = GridCoverSearcher.from_dict(loads(open(GRID_COVER).read()))
+        grid = GridCoverSearcher.from_filepath(GRID_COVER)
         query = 'AATACGTCCGGAGTATCGACGCACACATGGT'
         results = grid.search(query, 10)
         self.assertIn(query, results)
 
     def test_one_search_grid_cover_tight(self):
-        grid = GridCoverSearcher.from_dict(loads(open(GRID_COVER).read()))
+        grid = GridCoverSearcher.from_filepath(GRID_COVER)
         query = 'ATGATCCTTCCGCCAAAGTACGTCCGGAGCA'
         results = grid.search(query, 0.0001)
         self.assertIn(query, results)
         self.assertGreaterEqual(len(results), 1)
 
     def test_all_search_grid_cover_broad(self):
-        grid = GridCoverSearcher.from_dict(loads(open(GRID_COVER).read()))
+        grid = GridCoverSearcher.from_filepath(GRID_COVER)
         n_hits, n_kmers = 0, 0
         for kmer in grid.kmers:
             n_kmers += 1
@@ -56,7 +56,7 @@ class TestGridCover(TestCase):
 
     def test_all_search_grid_cover_tight(self):
 
-        grid = GridCoverSearcher.from_dict(loads(open(GRID_COVER).read()))
+        grid = GridCoverSearcher.from_filepath(GRID_COVER)
         n_hits, n_kmers = 0, 0
         for kmer in grid.kmers:
             n_kmers += 1
