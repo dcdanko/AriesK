@@ -37,7 +37,7 @@ cdef class GridCoverDB:
     cpdef get_kmers(self):
         return list(self.cursor.execute('SELECT * FROM kmers'))
 
-    cpdef get_cluster_members(self, centroid_id):
+    cpdef get_cluster_members(self, int centroid_id):
         """Retrieve the members of a cluster. 
 
         Called often during search, wrapped with cache.

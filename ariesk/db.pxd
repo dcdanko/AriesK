@@ -13,7 +13,7 @@ cdef class GridCoverDB:
     cdef public RotatingRamifier ramifier
 
     cpdef get_kmers(self)
-    cpdef get_cluster_members(self, centroid_id)
+    cpdef get_cluster_members(self, int centroid_id)
     cpdef add_point_to_cluster(self, centroid, str kmer)
     cdef double [:, :] c_get_centroids(self)
     cdef RotatingRamifier load_ramifier(self)

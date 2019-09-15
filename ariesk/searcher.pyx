@@ -26,6 +26,9 @@ cdef class GridCoverSearcher:
         self.radius = (self.db.ramifier.d ** (0.5)) * self.db.box_side_len
         self.ramifier = self.db.ramifier
         self.centroid_rfts = self.db.c_get_centroids()
+        for i in range(len(self.centroid_rfts)):
+            for j in range(self.db.ramifier.d):
+                self.centroid_rfts[i, j] *= self.db.box_side_len
         self.tree = cKDTree(self.centroid_rfts)
 
     cpdef _coarse_search(self, str kmer, double search_radius, double eps=1.01):
@@ -34,10 +37,9 @@ cdef class GridCoverSearcher:
         centroid_hits = self.tree.query_ball_point(rft, coarse_search_radius)
         return centroid_hits
 
-    cpdef _fine_search(self, str query_kmer, center):
+    cpdef _fine_search(self, str query_kmer, int center):
         out = []
-        for member_index in self.db.get_cluster_members(self.centroid_rfts[center]):
-            kmer = reverse_convert_kmer(self.kmers[member_index])
+        for kmer in self.db.get_cluster_members(center):
             needle = needle_dist(query_kmer, kmer)
             if needle < 1:
                 out.append(kmer)
