@@ -2,6 +2,8 @@
 import sqlite3
 import numpy as np
 
+from multiprocessing import Lock
+
 from .ram cimport RotatingRamifier
 
 
@@ -11,7 +13,7 @@ cdef simple_list(sql_cursor):
 
 cdef class GridCoverDB:
 
-    def __cinit__(self, conn, ramifier=None, box_side_len=None):
+    def __cinit__(self, conn, ramifier=None, box_side_len=None, multithreaded=False):
         self.conn = conn
         self.cursor = self.conn.cursor()
         self.cursor.execute('CREATE TABLE IF NOT EXISTS basics (name text, value text)')
@@ -45,6 +47,16 @@ cdef class GridCoverDB:
         vals = self.cursor.execute('SELECT seq FROM kmers WHERE centroid_id=?', (centroid_id,))
         return simple_list(vals)
 
+    cpdef _add_pre_point_to_cluster(self, str centroid_str, str kmer):
+        try:
+            centroid_id = self.centroid_cache[centroid_str]
+        except KeyError:
+            centroid_id = len(self.centroid_cache)
+            self.centroid_cache[centroid_str] = centroid_id
+            self.cursor.execute('INSERT INTO centroids VALUES (?,?)', (centroid_id, centroid_str))
+
+        self.cursor.execute('INSERT INTO kmers VALUES (?,?)', (centroid_id, kmer))
+
     cpdef add_point_to_cluster(self, centroid, str kmer):
         """Store a new point in the db. centroid is not assumed to exist.
 
@@ -59,6 +71,7 @@ cdef class GridCoverDB:
             self.cursor.execute('INSERT INTO centroids VALUES (?,?)', (centroid_id, centroid_str))
 
         self.cursor.execute('INSERT INTO kmers VALUES (?,?)', (centroid_id, kmer))
+
 
     cdef double [:, :] c_get_centroids(self):
         """Return a memoryview on cetnroids in this db.
@@ -80,6 +93,29 @@ cdef class GridCoverDB:
     def commit(self):
         """Flush data to disk."""
         self.conn.commit()
+
+    cpdef load_other(self, GridCoverDB other):
+        """Add contents of other db to this db."""
+        my_centroid_strs = {
+            centroid_str: cid
+            for cid, centroid_str in self.cursor.execute('SELECT * FROM centroids')
+        }
+        centroid_id_remap = {}
+        for other_id, other_centroid_str in other.cursor.execute('SELECT * FROM centroids'):
+            if other_centroid_str in my_centroid_strs:
+                centroid_id_remap[other_id] = my_centroid_strs[other_centroid_str]
+            else:
+                new_id = len(my_centroid_strs)
+                centroid_id_remap[other_id] = new_id
+                self.cursor.execute(
+                    'INSERT INTO centroids VALUES (?,?)',
+                    (new_id, other_centroid_str)
+                )
+
+        for other_id, kmer in other.cursor.execute('SELECT * FROM kmers'):
+            new_id = centroid_id_remap[other_id]
+            self.cursor.execute('INSERT INTO kmers VALUES (?,?)', (new_id, kmer))
+        self.commit()
 
     cdef save_ramifier(self):
         stringify = lambda M: ','.join([str(el) for el in M])

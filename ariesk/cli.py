@@ -19,6 +19,7 @@ from ariesk.ram import (
     RotatingRamifier,
 )
 from ariesk.grid_cover import GridCoverBuilder
+from ariesk.db import GridCoverDB
 
 from .cli_dev import dev_cli
 from .cli_stats import stats_cli
@@ -75,6 +76,15 @@ def build_grid_cover(radius, dimension, num_kmers, start_offset, outfile, rotati
 
     grid.close()
 
+
+@main.command('merge-grid')
+@click.argument('final_db', type=click.Path())
+@click.argument('other_dbs', type=click.Path(), nargs=-1)
+def merge_grid_cover(final_db, other_dbs):
+    final_db = GridCoverDB.load_from_filepath(final_db)
+    for other_db_filename in other_dbs:
+        other_db = GridCoverDB.load_from_filepath(other_db_filename)
+        final_db.load_other(other_db)
 
 
 @main.command('search')
