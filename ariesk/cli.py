@@ -61,13 +61,14 @@ def calculate_pca_rotation(kmer_len, num_kmers, outfile, kmer_table):
 @click.option('-n', '--num-kmers', default=0, help='Number of kmers to cluster.')
 @click.option('-s', '--start-offset', default=0)
 @click.option('-o', '--outfile', default='ariesk_grid_cover_db.sqlite', type=click.Path())
+@click.option('--preload/--no-preload', default=False, help='Load k-mers into RAM before processing')
 @click.argument('rotation', type=click.Path())
 @click.argument('kmer_table', type=click.Path())
-def build_grid_cover(radius, dimension, num_kmers, start_offset, outfile, rotation, kmer_table):
+def build_grid_cover(radius, dimension, num_kmers, start_offset, outfile, preload, rotation, kmer_table):
     ramifier = RotatingRamifier.from_file(dimension, rotation)
     grid = GridCoverBuilder.from_filepath(outfile, ramifier, radius)
     start = time()
-    grid.add_kmers_from_file(kmer_table, start=start_offset, num_to_add=num_kmers)
+    grid.add_kmers_from_file(kmer_table, start=start_offset, num_to_add=num_kmers, preload=preload)
     add_time = time() - start
     click.echo(f'Added {num_kmers:,} kmers to cover in {add_time:.5}s.', err=True)
 

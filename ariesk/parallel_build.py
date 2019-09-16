@@ -29,6 +29,7 @@ def coordinate_parallel_build(output_filename, kmer_table, rotation,
             f'-n {chunk_size} '
             f'-s {chunk_start} '
             f'-o {temp_filename} '
+            f'--preload '
             f'{rotation} {kmer_table}'
         )
         cmds.append((cmd, temp_filename))
