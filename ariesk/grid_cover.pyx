@@ -2,7 +2,6 @@ import numpy as np
 import sqlite3
 cimport numpy as npc
 
-from cython.parallel import prange
 
 from .utils cimport convert_kmer, KmerAddable
 from .ram cimport RotatingRamifier
@@ -17,6 +16,16 @@ cdef class GridCoverBuilder(KmerAddable):
         self.db = db
         self.ramifier = db.ramifier
         self.num_kmers_added = 0
+
+    def _bulk_pre_add_kmers(self, lines, sep=','):
+        kmers = [lines.strip().split(sep)[0] for line in lines]
+        out = [(self._pre_add_kmer(kmer), kmer) for kmer in kmers]
+        return out
+
+    cdef str _pre_add_kmer(self, kmer):
+        cdef double [:] centroid_rft = np.floor(self.ramifier.c_ramify(kmer) / self.db.box_side_len)
+        cdef str centroid_str = ','.join([str(el) for el in centroid_rft])
+        return centroid_str
 
     cpdef add_kmer(self, str kmer):
         cdef double [:] centroid_rft = np.floor(self.ramifier.c_ramify(kmer) / self.db.box_side_len)

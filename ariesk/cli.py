@@ -6,6 +6,8 @@ import socket
 from random import shuffle
 from time import time
 from json import dumps, loads
+from shutil import copyfile
+from os.path import isfile
 
 from gimmebio.sample_seqs import EcoliGenome
 from gimmebio.kmers import make_kmers
@@ -81,6 +83,9 @@ def build_grid_cover(radius, dimension, num_kmers, start_offset, outfile, rotati
 @click.argument('final_db', type=click.Path())
 @click.argument('other_dbs', type=click.Path(), nargs=-1)
 def merge_grid_cover(final_db, other_dbs):
+    if not isfile(final_db):
+        copyfile(other_dbs[0], final_db)
+        other_dbs = other_dbs[1:]
     final_db = GridCoverDB.load_from_filepath(final_db)
     for other_db_filename in other_dbs:
         other_db = GridCoverDB.load_from_filepath(other_db_filename)

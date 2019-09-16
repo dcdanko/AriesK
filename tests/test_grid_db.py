@@ -27,6 +27,22 @@ class TestGridCoverDB(TestCase):
         self.assertEqual(len(members), 1)
         self.assertIn(KMER_31, members)
 
+    def test_merge_dbs(self):
+        ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
+        db1 = GridCoverDB(sqlite3.connect(':memory:'), ramifier=ramifier, box_side_len=0.5)
+        db1.add_point_to_cluster(np.array([0, 0, 0, 0]), KMER_30 + 'A')
+        db1.add_point_to_cluster(np.array([1, 0, 0, 0]), KMER_30 + 'T')
+        db2 = GridCoverDB(sqlite3.connect(':memory:'), ramifier=ramifier, box_side_len=0.5)
+        db2.add_point_to_cluster(np.array([0, 0, 0, 0]), KMER_30 + 'C')
+        db2.add_point_to_cluster(np.array([1, 1, 0, 0]), KMER_30 + 'G')
+        db1.load_other(db2)
+        centroids = db1.centroids()
+        self.assertEqual(centroids.shape, (3, 4))
+        kmers = [el[1] for el in db1.get_kmers()]
+        self.assertEqual(len(kmers), 4)
+        for char in 'ATCG':
+            self.assertIn(KMER_30 + char, kmers)
+
     def test_get_centroids(self):
         ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
         db = GridCoverDB(sqlite3.connect(':memory:'), ramifier=ramifier, box_side_len=0.5)

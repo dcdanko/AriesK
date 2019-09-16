@@ -1,5 +1,6 @@
 
 import sqlite3
+import os
 
 from json import loads
 from os.path import join, dirname
@@ -10,6 +11,7 @@ from ariesk.grid_cover import GridCoverBuilder
 from ariesk.searcher import GridCoverSearcher
 from ariesk.utils import py_reverse_convert_kmer
 from ariesk.db import GridCoverDB
+from ariesk.parallel_build import coordinate_parallel_build
 
 KMER_TABLE = join(dirname(__file__), 'small_31mer_table.csv')
 KMER_ROTATION = join(dirname(__file__), '../data/rotation_minikraken.json')
@@ -29,6 +31,17 @@ class TestGridCover(TestCase):
         self.assertGreater(n_centers, 0)
         self.assertLess(n_centers, 100)
         self.assertEqual(n_points, 100)
+
+    def test_build_parallel(self):
+        out_name = 'temp.test_parallel_build.sqlite'
+        coordinate_parallel_build(out_name, KMER_TABLE, KMER_ROTATION, 2, 0, 100, 0.5, 8, chunk_size=10)
+        db = GridCoverDB.load_from_filepath(out_name)
+        n_centers = db.centroids().shape[0]
+        n_points = len(db.get_kmers())
+        self.assertGreater(n_centers, 0)
+        self.assertLess(n_centers, 100)
+        self.assertEqual(n_points, 100)
+        os.remove(out_name)
 
     def test_one_coarse_search_grid_cover_broad(self):
         grid = GridCoverSearcher.from_filepath(GRID_COVER)
