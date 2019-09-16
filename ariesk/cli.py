@@ -96,12 +96,14 @@ def build_grid_cover(radius, dimension, threads, chunk_size, num_kmers,
         click.echo(f'Finished {num + 1} chunks of {total}', err=True)
         if num + 1 == total:
             click.echo('Merging...', err=True)
-
+    start = time()
     coordinate_parallel_build(
         outfile, kmer_table, rotation,
         threads, start_offset, num_kmers, radius, dimension,
         chunk_size=chunk_size, logger=logger
     )
+    elapsed = time() - start
+    click.echo(f'Built grid cover in {elapsed:.5}s.', err=True)
 
 
 @main.command('merge-grid')
