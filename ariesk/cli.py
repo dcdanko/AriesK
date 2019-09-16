@@ -22,6 +22,7 @@ from ariesk.ram import (
 )
 from ariesk.grid_cover import GridCoverBuilder
 from ariesk.db import GridCoverDB
+from ariesk.parallel_build import coordinate_parallel_build
 
 from .cli_dev import dev_cli
 from .cli_stats import stats_cli
@@ -77,6 +78,30 @@ def build_grid_cover(radius, dimension, num_kmers, start_offset, outfile, rotati
     click.echo(f'Built grid cover in {cluster_time:.5}s. {n_centers:,} clusters.', err=True)
 
     grid.close()
+
+
+@main.command('parallel-build-grid')
+@click.option('-r', '--radius', default=0.02, type=float)
+@click.option('-d', '--dimension', default=8)
+@click.option('-t', '--threads', default=1)
+@click.option('-c', '--chunk-size', default=100 * 1000)
+@click.option('-n', '--num-kmers', default=0, help='Number of kmers to cluster.')
+@click.option('-s', '--start-offset', default=0)
+@click.option('-o', '--outfile', default='ariesk_grid_cover_db.sqlite', type=click.Path())
+@click.argument('rotation', type=click.Path())
+@click.argument('kmer_table', type=click.Path())
+def build_grid_cover(radius, dimension, threads, chunk_size, num_kmers,
+                     start_offset, outfile, rotation, kmer_table):
+    def logger(num, total):
+        click.echo(f'Finished {num + 1} chunks of {total}', err=True)
+        if num + 1 == total:
+            click.echo('Merging...', err=True)
+
+    coordinate_parallel_build(
+        outfile, kmer_table, rotation,
+        threads, start_offset, num_kmers, radius, dimension,
+        chunk_size=chunk_size, logger=logger
+    )
 
 
 @main.command('merge-grid')

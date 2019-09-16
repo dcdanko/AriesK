@@ -16,9 +16,10 @@ def run_command(args):
 
 def coordinate_parallel_build(output_filename, kmer_table, rotation,
     threads, start, num_to_add, radius, dimension,
-    chunk_size=HUNDREDK, logger=lambda x: None):
+    chunk_size=HUNDREDK, logger=lambda x, y: None):
     cmds = []
-    for chunk_num in range(num_to_add // chunk_size):
+    n_chunks = num_to_add // chunk_size
+    for chunk_num in range(n_chunks):
         chunk_start = start + (chunk_num * chunk_size)
         temp_filename = f'temp.ariesk_temp_chunk.{chunk_num}.{basename(kmer_table)}.sqlite'
         cmd = (
@@ -33,7 +34,10 @@ def coordinate_parallel_build(output_filename, kmer_table, rotation,
         cmds.append((cmd, temp_filename))
 
     with Pool(threads) as pool:
-        temp_filenames = [fname for fname in pool.imap_unordered(run_command, cmds)]
+        temp_filenames = []
+        for i, fname in enumerate(pool.imap_unordered(run_command, cmds)):
+            logger(i, n_chunks)
+            temp_filenames.append(fname)
         cmd = (
             f'{ARIESK_EXC} merge-grid '
             f'{output_filename} '
