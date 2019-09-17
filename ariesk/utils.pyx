@@ -76,19 +76,13 @@ cdef class KmerAddable:
             self.add_kmer(kmer)
 
     def add_kmers_from_file(self, str filename, sep=',', start=0, num_to_add=0, preload=False):
-        kmers = []
         with open(filename) as f:
             n_added = 0
-            for i, line in enumerate(f):
-                if i < start:
-                    continue
-                n_added += 1
-                if num_to_add > 0 and n_added > num_to_add:
-                    break
-                kmer = line.split(sep)[0]
-                if preload:
-                    kmers.append(kmer)
-                else:
+            if start > 0:
+                f.readlines(start)
+            for line in f:
+                if (num_to_add <= 0) or (n_added < num_to_add):
+                    kmer = line.split(sep)[0]
                     self.add_kmer(kmer)
-        if preload:
-            self.bulk_add_kmers(kmers)
+                    n_added += 1
+            return n_added

@@ -34,7 +34,7 @@ class TestGridCover(TestCase):
 
     def test_build_parallel(self):
         out_name = 'temp.test_parallel_build.sqlite'
-        coordinate_parallel_build(out_name, KMER_TABLE, KMER_ROTATION, 2, 0, 100, 0.5, 8, chunk_size=10)
+        coordinate_parallel_build(out_name, KMER_TABLE, KMER_ROTATION, 2, 0, 100, 0.5, 8, chunk_size=25)
         db = GridCoverDB.load_from_filepath(out_name)
         n_centers = db.centroids().shape[0]
         n_points = len(db.get_kmers())

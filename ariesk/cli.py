@@ -68,17 +68,13 @@ def build_grid_cover(radius, dimension, num_kmers, start_offset, outfile, preloa
     ramifier = RotatingRamifier.from_file(dimension, rotation)
     grid = GridCoverBuilder.from_filepath(outfile, ramifier, radius)
     start = time()
-    grid.add_kmers_from_file(kmer_table, start=start_offset, num_to_add=num_kmers, preload=preload)
-    add_time = time() - start
-    click.echo(f'Added {num_kmers:,} kmers to cover in {add_time:.5}s.', err=True)
-
-    start = time()
+    n_added = grid.add_kmers_from_file(kmer_table, start=start_offset, num_to_add=num_kmers, preload=preload)
     grid.commit()
-    cluster_time = time() - start
     n_centers = grid.db.centroids().shape[0]
-    click.echo(f'Built grid cover in {cluster_time:.5}s. {n_centers:,} clusters.', err=True)
-
     grid.close()
+    add_time = time() - start
+    click.echo(f'Added {n_added:,} kmers to {outfile} in {add_time:.5}s. {n_centers:,} clusters.', err=True)
+
 
 
 @main.command('parallel-build-grid')

@@ -31,15 +31,25 @@ def coordinate_parallel_build(output_filename, kmer_table, rotation,
             f'--preload '
             f'{rotation} {kmer_table}'
         )
-        process = sp.Popen(cmd, shell=True)
-        cmds.append((temp_filename, process))
+        cmds.append((temp_filename, cmd))
 
-    temp_filenames = []
-    for i, (fname, process) in enumerate(cmds):
-        process.wait()
-        assert process.returncode == 0
-        logger(i, n_chunks)
-        temp_filenames.append(fname)
+    n_running = 0
+    processes = []
+    polled = set()
+    while len(cmds) > 0:
+        if n_running < threads:
+            temp_filename, cmd = cmds.pop()
+            process = sp.Popen(cmd, shell=True)
+            processes.append((temp_filename, process))
+            n_running += 1
+        else:
+            for i, (temp_filename, process) in enumerate(processes):
+                if process.poll() is not None and temp_filename not in polled:
+                    polled.add(temp_filename)
+                    assert process.returncode == 0
+                    logger(i, n_chunks)
+                    n_running -= 1
+    temp_filenames = [el[0] for el in processes]
     cmd = (
         f'{ARIESK_EXC} merge-grid '
         f'{output_filename} '
