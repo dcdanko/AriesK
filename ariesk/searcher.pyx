@@ -37,7 +37,7 @@ cdef class GridCoverSearcher:
         centroid_hits = self.tree.query_ball_point(rft, coarse_search_radius)
         return centroid_hits
 
-    cpdef _fine_search(self, str query_kmer, int center, double inner_radius=0.2, bool fast_search=False):
+    cpdef _fine_search(self, str query_kmer, int center, double inner_radius=0.2, fast_search=False):
         out = []
         for kmer in self.db.get_cluster_members(center):
             if fast_search:
@@ -48,7 +48,7 @@ cdef class GridCoverSearcher:
                     out.append(kmer)
         return out
 
-    cpdef search(self, str kmer, double search_radius, double inner_radius=0.2, double eps=1.01, bool fast_search=False):
+    cpdef search(self, str kmer, double search_radius, double inner_radius=0.2, double eps=1.01, fast_search=False):
         out = []
         for center in self._coarse_search(kmer, search_radius, eps=eps):
             out += self._fine_search(kmer, center, inner_radius=inner_radius)
