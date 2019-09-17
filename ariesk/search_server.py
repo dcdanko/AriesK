@@ -73,7 +73,7 @@ class SearchServer:
                     kmer,
                     float(outer_radius),
                 )
-                results = '\n'.join(list(results))
+                results = '\n'.join([str(el) for el in results])
             self.socket.send_string(results)
         self.running = False
 
