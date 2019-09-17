@@ -53,6 +53,6 @@ class SearchServer:
         self.running = False
 
     @classmethod
-    def from_filepath(cls, port, filepath, auto_start=False):
+    def from_filepath(cls, port, filepath, **kwargs):
         grid = GridCoverSearcher.from_filepath(filepath)
-        return cls(port, grid, auto_start=auto_start)
+        return cls(port, grid, **kwargs)
