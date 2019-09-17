@@ -49,6 +49,8 @@ def coordinate_parallel_build(output_filename, kmer_table, rotation,
                     assert process.returncode == 0
                     logger(i, n_chunks)
                     n_running -= 1
+    for _, process in processes:
+        process.wait()
     temp_filenames = [el[0] for el in processes]
     cmd = (
         f'{ARIESK_EXC} merge-grid '
