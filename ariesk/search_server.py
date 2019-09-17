@@ -17,7 +17,15 @@ class SearchClient:
 
     def search(self, kmer, outer_radius, inner_radius, fast=False):
         fast = 'FAST' if fast else 'SLOW'
-        self.socket.send_string(f'{kmer} {outer_radius} {inner_radius} {fast}')
+        self.socket.send_string(f'FULL {kmer} {outer_radius} {inner_radius} {fast}')
+        results = self.socket.recv_string()
+        for result in results.split('\n'):
+            if self.callback:
+                self.callback(result)
+            yield result
+
+    def coarse_search(self, kmer, outer_radius):
+        self.socket.send_string(f'COARSE {kmer} {outer_radius}')
         results = self.socket.recv_string()
         for result in results.split('\n'):
             if self.callback:
@@ -48,14 +56,24 @@ class SearchServer:
                 self.logger(f'MESSAGE_RECEIVED: {msg}')
             if msg == SHUTDOWN_MSG:
                 break
-            kmer, outer_radius, inner_radius, fast = msg.split()
-            results = self.grid.search(
-                kmer,
-                float(outer_radius),
-                inner_radius=float(inner_radius),
-                fast_search=(fast == 'FAST')
-            )
-            results = '\n'.join(list(results))
+            tkns = msg.split()
+            mode, tkns = tkns[0], tkns[1:]
+            if mode == 'FULL':
+                kmer, outer_radius, inner_radius, fast = tkns
+                results = self.grid.search(
+                    kmer,
+                    float(outer_radius),
+                    inner_radius=float(inner_radius),
+                    fast_search=(fast == 'FAST')
+                )
+                results = '\n'.join(list(results))
+            elif mode == 'COARSE':
+                kmer, outer_radius = tkns
+                results = self.grid._coarse_search(
+                    kmer,
+                    float(outer_radius),
+                )
+                results = '\n'.join(list(results))
             self.socket.send_string(results)
         self.running = False
 
