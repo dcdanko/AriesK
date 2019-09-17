@@ -2,6 +2,7 @@
 import subprocess as sp
 from os import remove, environ
 from os.path import basename
+from time import sleep
 
 ARIESK_EXC = environ.get('ARIESK_EXC', 'ariesk')
 HUNDREDK = 100 * 1000
@@ -49,8 +50,11 @@ def coordinate_parallel_build(output_filename, kmer_table, rotation,
                     assert process.returncode == 0
                     logger(i, n_chunks)
                     n_running -= 1
+        sleep(5)
+
     for _, process in processes:
         process.wait()
+
     temp_filenames = [el[0] for el in processes]
     cmd = (
         f'{ARIESK_EXC} merge-grid '
