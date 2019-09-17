@@ -18,6 +18,7 @@ cdef class GridCoverDB:
         self.cursor = self.conn.cursor()
         self.cursor.execute('CREATE TABLE IF NOT EXISTS basics (name text, value text)')
         self.cursor.execute('CREATE TABLE IF NOT EXISTS kmers (centroid_id int, seq text)')
+        self.cursor.execute('CREATE INDEX IF NOT EXISTS IX_kmers_centroid ON kmers(centroid_id)')
         self.cursor.execute('CREATE TABLE IF NOT EXISTS centroids (centroid_id int, vals text)')
 
         self.centroid_cache = {}
