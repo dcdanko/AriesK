@@ -51,7 +51,7 @@ cdef class GridCoverSearcher:
     cpdef search(self, str kmer, double search_radius, double inner_radius=0.2, double eps=1.01, fast_search=False):
         out = []
         for center in self._coarse_search(kmer, search_radius, eps=eps):
-            out += self._fine_search(kmer, center, inner_radius=inner_radius)
+            out += self._fine_search(kmer, center, inner_radius=inner_radius, fast_search=fast_search)
         return out
 
     @classmethod
