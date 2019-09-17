@@ -45,7 +45,7 @@ def coordinate_parallel_build(output_filename, kmer_table, rotation,
             n_running += 1
         else:
             for i, (temp_filename, process) in enumerate(processes):
-                if process.poll() is not None and temp_filename not in polled:
+                if (process.poll() is not None) and (temp_filename not in polled):
                     polled.add(temp_filename)
                     assert process.returncode == 0
                     logger(i, n_chunks)

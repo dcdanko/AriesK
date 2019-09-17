@@ -8,6 +8,7 @@ from time import time
 from json import dumps, loads
 from shutil import copyfile
 from os.path import isfile
+from os import environ
 
 from gimmebio.sample_seqs import EcoliGenome
 from gimmebio.kmers import make_kmers
@@ -58,13 +59,16 @@ def calculate_pca_rotation(kmer_len, num_kmers, outfile, kmer_table):
 @main.command('build-grid')
 @click.option('-r', '--radius', default=0.02, type=float)
 @click.option('-d', '--dimension', default=8)
+@click.option('-t', '--threads', default=1)
 @click.option('-n', '--num-kmers', default=0, help='Number of kmers to cluster.')
 @click.option('-s', '--start-offset', default=0)
 @click.option('-o', '--outfile', default='ariesk_grid_cover_db.sqlite', type=click.Path())
 @click.option('--preload/--no-preload', default=False, help='Load k-mers into RAM before processing')
 @click.argument('rotation', type=click.Path())
 @click.argument('kmer_table', type=click.Path())
-def build_grid_cover(radius, dimension, num_kmers, start_offset, outfile, preload, rotation, kmer_table):
+def build_grid_cover(radius, dimension, threads, num_kmers, start_offset, outfile, preload, rotation, kmer_table):
+    environ['OPENBLAS_NUM_THREADS'] = f'{threads}'  # numpy uses one of these two libraries
+    os.environ['MKL_NUM_THREADS'] = f'{threads}'
     ramifier = RotatingRamifier.from_file(dimension, rotation)
     grid = GridCoverBuilder.from_filepath(outfile, ramifier, radius)
     start = time()
@@ -93,10 +97,13 @@ def build_grid_cover(radius, dimension, threads, chunk_size, num_kmers,
         click.echo(f'Finished {num + 1} chunks of {total}', err=True)
         if num + 1 == total:
             click.echo('Merging...', err=True)
+
+    environ['OPENBLAS_NUM_THREADS'] = '2'  # numpy uses one of these two libraries
+    os.environ['MKL_NUM_THREADS'] = '2'
     start = time()
     coordinate_parallel_build(
         outfile, kmer_table, rotation,
-        threads, start_offset, num_kmers, radius, dimension,
+        (3 * threads) // 4, start_offset, num_kmers, radius, dimension,
         chunk_size=chunk_size, logger=logger
     )
     elapsed = time() - start
