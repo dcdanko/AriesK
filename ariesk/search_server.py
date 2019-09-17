@@ -35,6 +35,7 @@ class SearchServer:
         self.socket = self.context.socket(zmq.REP)
         self.socket.bind(f'tcp://*:{port}')
         self.running = False
+        self.logger = logger
         if auto_start:
             self.main_loop()
 
@@ -43,7 +44,7 @@ class SearchServer:
         while self.running:
             msg = self.socket.recv_string()
             if self.logger:
-                logger(f'MESSAGE_RECEIVED: {msg}')
+                self.logger(f'MESSAGE_RECEIVED: {msg}')
             if msg == SHUTDOWN_MSG:
                 break
             kmer, outer_radius, inner_radius = msg.split()
