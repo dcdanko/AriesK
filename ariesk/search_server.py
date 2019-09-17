@@ -15,8 +15,9 @@ class SearchClient:
         self.socket = self.context.socket(zmq.REQ)
         self.socket.connect(f'tcp://127.0.0.1:{port}')
 
-    def search(self, kmer, outer_radius, inner_radius):
-        self.socket.send_string(f'{kmer} {outer_radius} {inner_radius}')
+    def search(self, kmer, outer_radius, inner_radius, fast=False):
+        fast = 'FAST' if fast else 'SLOW'
+        self.socket.send_string(f'{kmer} {outer_radius} {inner_radius} {fast}')
         results = self.socket.recv_string()
         for result in results.split('\n'):
             if self.callback:
@@ -47,8 +48,13 @@ class SearchServer:
                 self.logger(f'MESSAGE_RECEIVED: {msg}')
             if msg == SHUTDOWN_MSG:
                 break
-            kmer, outer_radius, inner_radius = msg.split()
-            results = self.grid.search(kmer, float(outer_radius), inner_radius=float(inner_radius))
+            kmer, outer_radius, inner_radius, fast = msg.split()
+            results = self.grid.search(
+                kmer,
+                float(outer_radius),
+                inner_radius=float(inner_radius),
+                fast_search=(fast == 'FAST')
+            )
             results = '\n'.join(list(results))
             self.socket.send_string(results)
         self.running = False
