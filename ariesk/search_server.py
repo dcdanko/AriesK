@@ -29,7 +29,7 @@ class SearchClient:
 
 class SearchServer:
 
-    def __init__(self, port, grid_cover, auto_start=False):
+    def __init__(self, port, grid_cover, auto_start=False, logger=None):
         self.grid = grid_cover
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
@@ -42,6 +42,8 @@ class SearchServer:
         self.running = True
         while self.running:
             msg = self.socket.recv_string()
+            if self.logger:
+                logger(f'MESSAGE_RECEIVED: {msg}')
             if msg == SHUTDOWN_MSG:
                 break
             kmer, outer_radius, inner_radius = msg.split()

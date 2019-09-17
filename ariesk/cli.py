@@ -136,8 +136,13 @@ def search(port, radius, inner_radius, outfile, kmers):
 
 
 @main.command('run-search-server')
+@click.option('-v/-q', '--verbose/--quiet', default=False)
 @click.option('-p', '--port', default=5432)
 @click.argument('grid_cover', type=click.Path())
-def run_search_server(port, grid_cover):
-    server = SearchServer.from_filepath(port, grid_cover)
+def run_search_server(verbose, port, grid_cover):
+    logger = None
+    if verbose:
+        logger = lambda el: click.echo(el, err=True)
+    server = SearchServer.from_filepath(port, grid_cover, logger=logger)
+    click.echo(f'Starting server on port {port}', err=True)
     server.main_loop()
