@@ -1,8 +1,6 @@
 import click
 import pandas as pd
 
-import socket
-
 from random import shuffle
 from time import time
 from json import dumps, loads
@@ -24,6 +22,7 @@ from ariesk.ram import (
 from ariesk.grid_cover import GridCoverBuilder
 from ariesk.db import GridCoverDB
 from ariesk.parallel_build import coordinate_parallel_build
+from ariesk.search_server import SearchClient, SearchServer
 
 from .cli_dev import dev_cli
 from .cli_stats import stats_cli
@@ -124,34 +123,21 @@ def merge_grid_cover(final_db, other_dbs):
 
 
 @main.command('search')
-@click.option('-p', '--port', default=50007)
+@click.option('-p', '--port', default=5432)
 @click.option('-r', '--radius', default=1.0)
-@click.argument('kmer')
-def search(port, radius, kmer):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect(('localhost', port))
-        s.sendall(f'{kmer} {radius}'.encode('utf-8'))
+@click.option('-i', '--inner-radius', default=1.0)
+@click.option('-o', '--outfile', default='-', type=click.File('w'))
+@click.argument('kmers', nargs=-1)
+def search(port, radius, inner_radius, outfile, kmers):
+    searcher = SearchClient(port)
+    for kmer in kmers:
+        for result in searcher.search(kmer, radius, inner_radius):
+            print(f'{kmer} {result}', file=outfile)
 
 
-@main.command('search-server')
-@click.option('-p', '--port', default=50007)
+@main.command('run-search-server')
+@click.option('-p', '--port', default=5432)
 @click.argument('grid_cover', type=click.Path())
 def run_search_server(port, grid_cover):
-    grid = GridCoverSearcher.from_filepath(grid_cover)
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('localhost', port))
-        s.listen(1)
-        print(f'Listening on port {port}')
-        while True:
-            conn, addr = s.accept()
-            with conn:
-                while True:
-                    data = conn.recv(1024).decode('utf-8')
-                    if not data: break
-
-                    kmer, radius = data.split()
-                    print(f'Searching {kmer} with radius {radius}')
-                    results = grid.search(kmer, float(radius))
-                    for result in results:
-                        print(f'{kmer} {result}')
-                
+    server = SearchServer.from_filepath(port, grid_cover)
+    server.main_loop()
