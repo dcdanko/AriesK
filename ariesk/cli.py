@@ -68,7 +68,7 @@ def calculate_pca_rotation(kmer_len, num_kmers, outfile, kmer_table):
 @click.argument('kmer_table', type=click.Path())
 def build_grid_cover(radius, dimension, threads, num_kmers, start_offset, outfile, preload, rotation, kmer_table):
     environ['OPENBLAS_NUM_THREADS'] = f'{threads}'  # numpy uses one of these two libraries
-    os.environ['MKL_NUM_THREADS'] = f'{threads}'
+    environ['MKL_NUM_THREADS'] = f'{threads}'
     ramifier = RotatingRamifier.from_file(dimension, rotation)
     grid = GridCoverBuilder.from_filepath(outfile, ramifier, radius)
     start = time()
@@ -99,7 +99,7 @@ def build_grid_cover(radius, dimension, threads, chunk_size, num_kmers,
             click.echo('Merging...', err=True)
 
     environ['OPENBLAS_NUM_THREADS'] = '2'  # numpy uses one of these two libraries
-    os.environ['MKL_NUM_THREADS'] = '2'
+    environ['MKL_NUM_THREADS'] = '2'
     start = time()
     coordinate_parallel_build(
         outfile, kmer_table, rotation,
