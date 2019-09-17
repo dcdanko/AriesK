@@ -45,8 +45,8 @@ cdef str reverse_convert_kmer(long [:] encoded):
 cdef double needle_dist(k1, k2):
     cdef double [:, :] score = np.zeros((len(k1) + 1, len(k2) + 1))
     cdef double match_score = 0
-    cdef double mismatch_penalty = 1.5
-    cdef double gap_penalty = 1.6
+    cdef double mismatch_penalty = 1
+    cdef double gap_penalty = 1.5
     for i in range(len(k1) + 1):
         score[i][0] = gap_penalty * i
     for j in range(len(k2) + 1):
