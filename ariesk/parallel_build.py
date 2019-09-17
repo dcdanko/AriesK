@@ -1,6 +1,5 @@
 
 import subprocess as sp
-from multiprocessing import Pool
 from os import remove, environ
 from os.path import basename
 
@@ -32,17 +31,19 @@ def coordinate_parallel_build(output_filename, kmer_table, rotation,
             f'--preload '
             f'{rotation} {kmer_table}'
         )
-        cmds.append((cmd, temp_filename))
+        process = sp.Popen(cmd, shell=True)
+        cmds.append((temp_filename, process))
 
-    with Pool(threads) as pool:
-        temp_filenames = []
-        for i, fname in enumerate(pool.imap_unordered(run_command, cmds)):
-            logger(i, n_chunks)
-            temp_filenames.append(fname)
-        cmd = (
-            f'{ARIESK_EXC} merge-grid '
-            f'{output_filename} '
-        ) + ' '.join(temp_filenames)
-        run_command((cmd, None))
-        for temp_filename in temp_filenames:
-            remove(temp_filename)
+    temp_filenames = []
+    for i, (fname, process) in enumerate(cmds):
+        process.wait()
+        assert process.returncode == 0
+        logger(i, n_chunks)
+        temp_filenames.append(fname)
+    cmd = (
+        f'{ARIESK_EXC} merge-grid '
+        f'{output_filename} '
+    ) + ' '.join(temp_filenames)
+    run_command((cmd, None))
+    for temp_filename in temp_filenames:
+        remove(temp_filename)
