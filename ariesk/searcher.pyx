@@ -29,6 +29,7 @@ cdef class GridCoverSearcher:
         for i in range(len(self.centroid_rfts)):
             for j in range(self.db.ramifier.d):
                 self.centroid_rfts[i, j] *= self.db.box_side_len
+                self.centroid_rfts[i, j] += (self.db.box_side_len / 2)
         self.tree = cKDTree(self.centroid_rfts)
 
     cpdef _coarse_search(self, str kmer, double search_radius, double eps=1.01):

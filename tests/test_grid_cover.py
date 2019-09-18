@@ -32,7 +32,7 @@ class TestGridCover(TestCase):
         self.assertLess(n_centers, 100)
         self.assertEqual(n_points, 100)
 
-    '''
+    ''' Test is slow, not really that useful
     def test_build_parallel(self):
         out_name = 'temp.test_parallel_build.sqlite'
         coordinate_parallel_build(out_name, KMER_TABLE, KMER_ROTATION, 2, 0, 100, 0.5, 8, chunk_size=25)
