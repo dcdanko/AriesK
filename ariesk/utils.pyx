@@ -41,8 +41,15 @@ cdef str reverse_convert_kmer(long [:] encoded):
             out += 'A'
     return out
 
+cdef double hamming_dist(k1, k2, normalize):
+    cdef double score = 0
+    for b1, b2 in zip(k1, k2):
+        score += 1 if b1 != b2 else 0
+    if normalize:
+        score /= len(k1)
+    return score
 
-cdef double needle_dist(k1, k2):
+cdef double needle_dist(k1, k2, normalize):
     cdef double [:, :] score = np.zeros((len(k1) + 1, len(k2) + 1))
     cdef double match_score = 0
     cdef double mismatch_penalty = 1
@@ -62,27 +69,6 @@ cdef double needle_dist(k1, k2):
             insert = score[i][j - 1] + gap_penalty
             score[i][j] = min(match, delete, insert)
     final_score = score[len(k1)][len(k2)]
-
-    return final_score / len(k1)
-
-
-cdef class KmerAddable:
-
-    cpdef add_kmer(self, str kmer):
-        raise NotImplementedError()
-
-    def bulk_add_kmers(self, kmers):
-        for kmer in kmers:
-            self.add_kmer(kmer)
-
-    def add_kmers_from_file(self, str filename, sep=',', start=0, num_to_add=0, preload=False):
-        with open(filename) as f:
-            n_added = 0
-            if start > 0:
-                f.readlines(start)
-            for line in f:
-                if (num_to_add <= 0) or (n_added < num_to_add):
-                    kmer = line.split(sep)[0]
-                    self.add_kmer(kmer)
-                    n_added += 1
-            return n_added
+    if normalize:
+        final_score /= len(k1)
+    return final_score

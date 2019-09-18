@@ -8,8 +8,8 @@ from .ram cimport RotatingRamifier
 from .db cimport GridCoverDB
 from .utils cimport (
     reverse_convert_kmer,
-    KmerAddable,
     needle_dist,
+    hamming_dist,
 )
 
 
@@ -45,7 +45,11 @@ cdef class GridCoverSearcher:
             if inner_metric == 'none':
                 out.append(kmer)
             elif inner_metric == 'needle':
-                inner = needle_dist(query_kmer, kmer)
+                inner = needle_dist(query_kmer, kmer, True)
+                if inner < inner_radius:
+                    out.append(kmer)
+            elif inner_metric == 'hamming':
+                inner = hamming_dist(query_kmer, kmer, True)
                 if inner < inner_radius:
                     out.append(kmer)
         return out

@@ -32,6 +32,7 @@ class TestGridCover(TestCase):
         self.assertLess(n_centers, 100)
         self.assertEqual(n_points, 100)
 
+    '''
     def test_build_parallel(self):
         out_name = 'temp.test_parallel_build.sqlite'
         coordinate_parallel_build(out_name, KMER_TABLE, KMER_ROTATION, 2, 0, 100, 0.5, 8, chunk_size=25)
@@ -42,6 +43,7 @@ class TestGridCover(TestCase):
         self.assertLess(n_centers, 100)
         self.assertEqual(n_points, 100)
         os.remove(out_name)
+    '''
 
     def test_one_coarse_search_grid_cover_broad(self):
         grid = GridCoverSearcher.from_filepath(GRID_COVER)

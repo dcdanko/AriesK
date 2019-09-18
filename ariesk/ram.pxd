@@ -1,6 +1,5 @@
 
 cimport numpy as npc
-from .utils cimport KmerAddable
 
 
 cdef class Ramifier:
@@ -21,7 +20,7 @@ cdef class RotatingRamifier:
     cdef npc.ndarray c_ramify(self, str kmer)
 
 
-cdef class StatisticalRam(KmerAddable):
+cdef class StatisticalRam:
     """Identify center, scale, and rotation on a set of k-mers.
 
     Easier to pre-compute this stuff.
@@ -29,4 +28,7 @@ cdef class StatisticalRam(KmerAddable):
     cdef public long k
     cdef public Ramifier ramifier
     cdef public double [:, :] rfts
+    cdef public int num_kmers_added
+    cdef public int max_size
 
+    cpdef add_kmer(self, str kmer)

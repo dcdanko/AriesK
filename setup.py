@@ -39,6 +39,13 @@ extensions = [
         language='c++',
     ),
     Extension(
+        'ariesk.linear_searcher',
+        ['ariesk/linear_searcher.pyx'],
+        include_dirs=[numpy.get_include()],
+        extra_compile_args=extra_compile_args,
+        language='c++',
+    ),
+    Extension(
         'ariesk.db',
         ['ariesk/db.pyx'],
         include_dirs=[numpy.get_include()],

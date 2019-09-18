@@ -2,7 +2,6 @@
 import numpy as np
 cimport numpy as npc
 
-from .utils cimport KmerAddable
 from .ramft import build_rs_matrix
 
 from json import loads
@@ -68,7 +67,7 @@ cdef class RotatingRamifier:
         )
 
 
-cdef class StatisticalRam(KmerAddable):
+cdef class StatisticalRam:
     """Identify center, scale, and rotation on a set of k-mers.
 
     Easier to pre-compute this stuff.
@@ -102,4 +101,20 @@ cdef class StatisticalRam(KmerAddable):
         idx = np.argsort(evals)[::-1]
         evecs = evecs[:,idx]
         return evecs.T
+
+    def bulk_add_kmers(self, kmers):
+        for kmer in kmers:
+            self.add_kmer(kmer)
+
+    def add_kmers_from_file(self, str filename, sep=',', start=0, num_to_add=0, preload=False):
+        with open(filename) as f:
+            n_added = 0
+            if start > 0:
+                f.readlines(start)
+            for line in f:
+                if (num_to_add <= 0) or (n_added < num_to_add):
+                    kmer = line.split(sep)[0]
+                    self.add_kmer(kmer)
+                    n_added += 1
+            return n_added
 
