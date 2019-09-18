@@ -36,11 +36,12 @@ class SearchClient:
         }
         msg.update(kwargs)
         self.socket.send_string(dumps(msg))
-        results = self.socket.recv_string()
-        for result in results.split('\n'):
-            if self.callback:
-                self.callback(result)
-            yield result
+        results = self.socket.recv_string().split('\n')
+        return results
+
+    def handshake(self):
+        self.socket.send_string(dumps({'type': 'handshake'}))
+        self.socket.recv_string()
 
     def send_shutdown(self):
         self.socket.send_string(dumps({'type': 'shutdown'}))
@@ -66,6 +67,10 @@ class SearchServer:
                 self.logger(f'MESSAGE_RECEIVED: {msg}')
             if msg['type'] == 'shutdown':
                 break
+            elif msg['type'] == 'handshake':
+                results = dumps({'type': 'handshake'})
+            elif msg['query_type'] == 'file':
+                results = self.full_file_search(msg)
             elif msg['search_mode'] == 'full':
                 results = self.full_search(msg)
             elif msg['search_mode'] == 'coarse':
@@ -81,6 +86,17 @@ class SearchServer:
             inner_metric=msg['inner_metric'],
         )
         results = '\n'.join(list(results))
+        return results
+
+    def full_file_search(self, msg):
+        self.grid.file_search(
+            msg['query'],
+            msg['result_file'],
+            msg['outer_radius'],
+            inner_radius=msg['inner_radius'],
+            inner_metric=msg['inner_metric'],
+        )
+        results = 'DONE'
         return results
 
     def coarse_search(self, msg):

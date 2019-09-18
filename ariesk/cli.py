@@ -122,7 +122,7 @@ def merge_grid_cover(final_db, other_dbs):
         final_db.load_other(other_db)
 
 
-@main.command('search')
+@main.command('search-seq')
 @click.option('-p', '--port', default=5432)
 @click.option('-r', '--radius', default=1.0)
 @click.option('-i', '--inner-radius', default=1.0)
@@ -139,6 +139,22 @@ def search(coarse, fast, port, radius, inner_radius, inner_metric, search_mode, 
         )
         for result in results:
             print(f'{kmer} {result}', file=outfile)
+
+@main.command('search-file')
+@click.option('-p', '--port', default=5432)
+@click.option('-r', '--radius', default=1.0)
+@click.option('-i', '--inner-radius', default=1.0)
+@click.option('-m', '--inner-metric', default='needle')
+@click.option('-s', '--search-mode', default='full')
+@click.argument('outfile', type=click.Path())
+@click.argument('seq_file', type=click.Path())
+def search(coarse, fast, port, radius, inner_radius, inner_metric, search_mode, outfile, seqfile):
+    searcher = SearchClient(port)
+    searcher.search(
+        kmer, radius, inner_radius,
+        search_mode=search_mode, inner_metric=inner_metric,
+        result_file=outfile, query_type='file'
+    )
 
 
 @main.command('run-search-server')

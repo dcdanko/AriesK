@@ -55,8 +55,24 @@ cdef class GridCoverSearcher:
                  double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
         out = []
         for center in self._coarse_search(kmer, search_radius, eps=eps):
-            out += self._fine_search(kmer, center, inner_radius=inner_radius, inner_metric=inner_metric)
+            out += self._fine_search(
+                kmer, center,
+                inner_radius=inner_radius, inner_metric=inner_metric
+            )
         return out
+
+    def file_search(self,
+                    str filepath, str out_filepath, double search_radius,
+                    double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
+        with open(filepath) as f, open(out_filepath, 'w') as o:
+            for line in f:
+                kmer = line.strip().split(',')[0].split('\t')[0]
+                results = self.search(
+                    kmer, search_radius,
+                    inner_radius=inner_radius, inner_metric=inner_metric, eps=eps
+                )
+                for result in results:
+                    o.write(f'{kmer} {result}\n')
 
     @classmethod
     def from_filepath(cls, filepath):
