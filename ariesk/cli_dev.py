@@ -6,11 +6,24 @@ from time import clock
 
 from ariesk.dists import DistanceFactory
 from ariesk.ram import RotatingRamifier
+from ariesk.linear_searcher import LinearSearcher
 
 
 @click.group('dev')
 def dev_cli():
     pass
+
+
+@dev_cli.command('linear-search')
+@click.option('-m', '--metric', default='needle', type=click.Choice(['hamming', 'needle']))
+@click.option('-o', '--outfile', default='-', type=click.File('w'))
+@click.argument('grid_cover', type=click.Path())
+@click.argument('kmers', nargs=-1)
+def linear_search(metric, outfile, grid_cover, kmers):
+    searcher = LinearSearcher.from_filepath(grid_cover)
+    for kmer in kmers:
+        for hit, dist in searcher.search(kmer, metric=metric):
+            print(f'{kmer} {hit} {dist}', file=outfile)
 
 
 @dev_cli.command('dists')

@@ -7,10 +7,12 @@ from unittest import TestCase
 from ariesk.dists import DistanceFactory
 
 from ariesk.utils import py_convert_kmer, py_reverse_convert_kmer
+from ariesk.linear_searcher import LinearSearcher
 
 KMER_TABLE = join(dirname(__file__), 'small_31mer_table.csv')
 KMER_ROTATION = join(dirname(__file__), '../data/rotation_minikraken.json')
-GRID_COVER = join(dirname(__file__), 'small_grid_cover.json')
+GRID_COVER = join(dirname(__file__), 'small_grid_cover.sqlite')
+KMER_31 = 'ATCGATCGATCGATCGATCGATCGATCGATCG'
 
 
 def random_kmer(k):
@@ -46,3 +48,13 @@ class TestUtils(TestCase):
             'TTCGATCGATCGATCGATCGATCGATCGATCG'
         )
         self.assertEqual(all_dists['hamming'], 1)
+
+    def test_linear_search(self):
+        searcher = LinearSearcher.from_filepath(GRID_COVER)
+        results = searcher.search(KMER_31, metric='needle')
+        self.assertEqual(len(results), 100)
+
+    def test_linear_search_hamming(self):
+        searcher = LinearSearcher.from_filepath(GRID_COVER)
+        results = searcher.search(KMER_31, metric='hamming')
+        self.assertEqual(len(results), 100)
