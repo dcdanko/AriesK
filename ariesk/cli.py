@@ -123,22 +123,22 @@ def merge_grid_cover(final_db, other_dbs):
 
 
 @main.command('search')
-@click.option('--coarse/--full', default=False)
-@click.option('--fast/--slow', default=False)
 @click.option('-p', '--port', default=5432)
 @click.option('-r', '--radius', default=1.0)
 @click.option('-i', '--inner-radius', default=1.0)
+@click.option('-m', '--inner-metric', default='needle')
+@click.option('-s', '--search-mode', default='full')
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
 @click.argument('kmers', nargs=-1)
-def search(coarse, fast, port, radius, inner_radius, outfile, kmers):
+def search(coarse, fast, port, radius, inner_radius, inner_metric, search_mode, outfile, kmers):
     searcher = SearchClient(port)
     for kmer in kmers:
-        if coarse:
-            for result in searcher.coarse_search(kmer, radius):
-                print(f'{kmer} {result}', file=outfile)
-        else:
-            for result in searcher.search(kmer, radius, inner_radius, fast=fast):
-                print(f'{kmer} {result}', file=outfile)
+        results = searcher.search(
+            kmer, radius, inner_radius,
+            search_mode=search_mode, inner_metric=inner_metric
+        )
+        for result in results:
+            print(f'{kmer} {result}', file=outfile)
 
 
 @main.command('run-search-server')

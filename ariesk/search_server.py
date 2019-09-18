@@ -1,10 +1,19 @@
 
 import zmq
+from json import dumps, loads
 
 from ariesk.searcher import GridCoverSearcher
 
-RESULTS_DONE_MSG = 'DONE'
-SHUTDOWN_MSG = 'SHUTDOWN'
+'''
+Allowed client->server message terms. *mandatory
+    type: search|shutdown
+    query_type: sequence|file
+    query: <string>
+    outer_radius: <float>
+    inner_radius: <float>
+    inner_metric: hamming|needle|none
+    search_mode: coarse|full
+'''
 
 
 class SearchClient:
@@ -15,17 +24,18 @@ class SearchClient:
         self.socket = self.context.socket(zmq.REQ)
         self.socket.connect(f'tcp://127.0.0.1:{port}')
 
-    def search(self, kmer, outer_radius, inner_radius, fast=False):
-        fast = 'FAST' if fast else 'SLOW'
-        self.socket.send_string(f'FULL {kmer} {outer_radius} {inner_radius} {fast}')
-        results = self.socket.recv_string()
-        for result in results.split('\n'):
-            if self.callback:
-                self.callback(result)
-            yield result
-
-    def coarse_search(self, kmer, outer_radius):
-        self.socket.send_string(f'COARSE {kmer} {outer_radius}')
+    def search(self, query, outer_radius, inner_radius, **kwargs):
+        msg = {
+            'type': 'search',
+            'query_type': 'sequence',
+            'query': query,
+            'outer_radius': outer_radius,
+            'inner_radius': inner_radius,
+            'search_mode': 'full',
+            'inner_metric': 'needle',
+        }
+        msg.update(kwargs)
+        self.socket.send_string(dumps(msg))
         results = self.socket.recv_string()
         for result in results.split('\n'):
             if self.callback:
@@ -33,7 +43,7 @@ class SearchClient:
             yield result
 
     def send_shutdown(self):
-        self.socket.send_string(SHUTDOWN_MSG)
+        self.socket.send_string(dumps({'type': 'shutdown'}))
 
 
 class SearchServer:
@@ -51,31 +61,35 @@ class SearchServer:
     def main_loop(self):
         self.running = True
         while self.running:
-            msg = self.socket.recv_string()
+            msg = loads(self.socket.recv_string())
             if self.logger:
                 self.logger(f'MESSAGE_RECEIVED: {msg}')
-            if msg == SHUTDOWN_MSG:
+            if msg['type'] == 'shutdown':
                 break
-            tkns = msg.split()
-            mode, tkns = tkns[0], tkns[1:]
-            if mode == 'FULL':
-                kmer, outer_radius, inner_radius, fast = tkns
-                results = self.grid.search(
-                    kmer,
-                    float(outer_radius),
-                    inner_radius=float(inner_radius),
-                    fast_search=(fast == 'FAST')
-                )
-                results = '\n'.join(list(results))
-            elif mode == 'COARSE':
-                kmer, outer_radius = tkns
-                results = self.grid._coarse_search(
-                    kmer,
-                    float(outer_radius),
-                )
-                results = '\n'.join([str(el) for el in results])
+            elif msg['search_mode'] == 'full':
+                results = self.full_search(msg)
+            elif msg['search_mode'] == 'coarse':
+                results = self.coarse_search(msg)
             self.socket.send_string(results)
         self.running = False
+
+    def full_search(self, msg):
+        results = self.grid.search(
+            msg['query'],
+            msg['outer_radius'],
+            inner_radius=msg['inner_radius'],
+            inner_metric=msg['inner_metric'],
+        )
+        results = '\n'.join(list(results))
+        return results
+
+    def coarse_search(self, msg):
+        results = self.grid._coarse_search(
+            msg['query'],
+            msg['outer_radius'],
+        )
+        results = '\n'.join([str(el) for el in results])
+        return results
 
     @classmethod
     def from_filepath(cls, port, filepath, **kwargs):
