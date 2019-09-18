@@ -126,11 +126,11 @@ def merge_grid_cover(final_db, other_dbs):
 @click.option('-p', '--port', default=5432)
 @click.option('-r', '--radius', default=1.0)
 @click.option('-i', '--inner-radius', default=1.0)
-@click.option('-m', '--inner-metric', default='needle')
-@click.option('-s', '--search-mode', default='full')
+@click.option('-m', '--inner-metric', default='needle', type=click.Choice(['hamming', 'needle', 'none']))
+@click.option('-s', '--search-mode', default='full', type=click.Choice(['full', 'coarse']))
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
 @click.argument('kmers', nargs=-1)
-def search(coarse, fast, port, radius, inner_radius, inner_metric, search_mode, outfile, kmers):
+def search_seq(port, radius, inner_radius, inner_metric, search_mode, outfile, kmers):
     searcher = SearchClient(port)
     for kmer in kmers:
         start = time()
@@ -152,7 +152,7 @@ def search(coarse, fast, port, radius, inner_radius, inner_metric, search_mode, 
 @click.option('-s', '--search-mode', default='full')
 @click.argument('outfile', type=click.Path())
 @click.argument('seq_file', type=click.Path())
-def search(coarse, fast, port, radius, inner_radius, inner_metric, search_mode, outfile, seqfile):
+def search_file(port, radius, inner_radius, inner_metric, search_mode, outfile, seqfile):
     searcher = SearchClient(port)
     start = time()
     searcher.search(
@@ -175,3 +175,10 @@ def run_search_server(verbose, port, grid_cover):
     server = SearchServer.from_filepath(port, grid_cover, logger=logger)
     click.echo(f'Starting server on port {port}', err=True)
     server.main_loop()
+
+
+@main.command('shutdown-search-server')
+@click.option('-p', '--port', default=5432)
+def search_file(port):
+    searcher = SearchClient(port)
+    searcher.send_shutdown()

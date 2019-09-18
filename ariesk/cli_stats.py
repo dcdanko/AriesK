@@ -18,6 +18,7 @@ def stats_cli():
 @stats_cli.command('cover-stats')
 @click.argument('grid_cover', type=click.Path())
 def cli_dump_kmers(grid_cover):
+    click.echo(grid_cover)
     grid = GridCoverDB.load_from_filepath(grid_cover)
     n_centers = grid.centroids().shape[0]
     click.echo(f'centers\t{n_centers}')
