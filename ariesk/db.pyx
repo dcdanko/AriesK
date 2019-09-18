@@ -22,6 +22,7 @@ cdef class GridCoverDB:
         self.cursor.execute('CREATE TABLE IF NOT EXISTS centroids (centroid_id int, vals text)')
 
         self.centroid_cache = {}
+        self.cluster_cache = {}
         if ramifier is None:
             self.ramifier = self.load_ramifier()
             self.box_side_len = float(self.cursor.execute(
@@ -45,8 +46,12 @@ cdef class GridCoverDB:
 
         Called often during search, wrapped with cache.
         """
+        if centroid_id in self.cluster_cache:
+            return self.cluster_cache[centroid_id]
         vals = self.cursor.execute('SELECT seq FROM kmers WHERE centroid_id=?', (centroid_id,))
-        return simple_list(vals)
+        vals = simple_list(vals)
+        self.cluster_cache[centroid_id] = vals
+        return vals
 
     cpdef _add_pre_point_to_cluster(self, str centroid_str, str kmer):
         try:

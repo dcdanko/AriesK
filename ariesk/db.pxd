@@ -11,6 +11,9 @@ cdef class GridCoverDB:
     cdef public object cursor
     cdef public object centroid_cache
     cdef public RotatingRamifier ramifier
+    # A too simple dict based cache
+    # for initial testing only as this will grow without bounds
+    cdef public object cluster_cache
 
     cpdef get_kmers(self)
     cpdef get_cluster_members(self, int centroid_id)
