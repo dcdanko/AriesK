@@ -1,13 +1,14 @@
 
 import zmq
 from json import dumps, loads
+from time import time
 
 from ariesk.searcher import GridCoverSearcher
 
 '''
 Allowed client->server message terms. *mandatory
     type: search|shutdown
-    query_type: sequence|file
+    query_type: sequence|file|multiseq
     query: <string>
     outer_radius: <float>
     inner_radius: <float>
@@ -65,6 +66,7 @@ class SearchServer:
             msg = loads(self.socket.recv_string())
             if self.logger:
                 self.logger(f'MESSAGE_RECEIVED: {msg}')
+            start = time()
             if msg['type'] == 'shutdown':
                 break
             elif msg['type'] == 'handshake':
@@ -75,7 +77,11 @@ class SearchServer:
                 results = self.full_search(msg)
             elif msg['search_mode'] == 'coarse':
                 results = self.coarse_search(msg)
+            elapsed = time() - start
             self.socket.send_string(results)
+            if self.logger:
+                self.logger(f'TIME_TO_REPLY: {elapsed:.5}s')
+                # self.logger(f'MESSAGE_SENT: {results}')
         self.running = False
 
     def full_search(self, msg):
