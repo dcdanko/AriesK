@@ -20,18 +20,15 @@ PORT = 5431
 KMER_31 = 'AATACGTCCGGAGTATCGACGCACACATGGT'
 
 
-def run_server_cli():
-    runner = CliRunner()
-    try:
-        runner.invoke(main, ['run-search-server', f'-p {PORT}', GRID_COVER])
-    except ValueError:  # occurs from Click tester, not important
-        pass
+def run_server():
+    SearchServer.from_filepath(PORT, GRID_COVER, auto_start=True)
+
 
 class TestMainCli(TestCase):
 
     def test_search_server_cli(self):
         runner = CliRunner()
-        server_thread = KThread(target=run_server_cli)
+        server_thread = KThread(target=run_server)
         try:
             server_thread.start()
             results = runner.invoke(
