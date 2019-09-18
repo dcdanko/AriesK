@@ -151,12 +151,12 @@ def search_seq(port, radius, inner_radius, inner_metric, search_mode, outfile, k
 @click.option('-m', '--inner-metric', default='needle')
 @click.option('-s', '--search-mode', default='full')
 @click.argument('outfile', type=click.Path())
-@click.argument('seq_file', type=click.Path())
+@click.argument('seqfile', type=click.Path())
 def search_file(port, radius, inner_radius, inner_metric, search_mode, outfile, seqfile):
     searcher = SearchClient(port)
     start = time()
     searcher.search(
-        kmer, radius, inner_radius,
+        seqfile, radius, inner_radius,
         search_mode=search_mode, inner_metric=inner_metric,
         result_file=outfile, query_type='file'
     )

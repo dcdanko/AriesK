@@ -41,6 +41,25 @@ class TestMainCli(TestCase):
             if server_thread.is_alive():
                 server_thread.terminate()
 
+    def test_search_file_server_cli(self):
+        runner = CliRunner()
+        server_thread = KThread(target=run_server)
+        with runner.isolated_filesystem():
+            outfile = 'temp.test_file_search.csv'
+            try:
+                server_thread.start()
+                result = runner.invoke(
+                    main,
+                    [
+                        'search-file', f'-p {PORT}', '--search-mode=coarse', '-r 0', '-i 0.1',
+                        outfile, KMER_TABLE
+                ])
+                self.assertEqual(result.exit_code, 0)
+                runner.invoke(main, ['shutdown-search-server', f'-p {PORT}'])
+            finally:
+                if server_thread.is_alive():
+                    server_thread.terminate()
+
     def test_build_db_cli(self):
         runner = CliRunner()
         with runner.isolated_filesystem():
