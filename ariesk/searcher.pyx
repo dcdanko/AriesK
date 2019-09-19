@@ -47,6 +47,7 @@ cdef class GridCoverSearcher:
         min_count = len(query_kmer) + 1 - 5 * (1 + int(inner_radius * len(query_kmer)))
         if count < min_count:
             return []
+
         out = []
         for kmer in self.db.get_cluster_members(center):
 

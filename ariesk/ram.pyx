@@ -67,6 +67,47 @@ cdef class RotatingRamifier:
         )
 
 
+cdef class UnscaledRotatingRamifier:
+    """Project k-mers into RFT space with PCA."""
+
+    def __cinit__(self, k, d, rotation, center, scale):
+        self.k = k
+        self.d = d
+        self.rotation = rotation
+        self.center = center
+        self.scale = scale
+        self.ramifier = Ramifier(self.k)
+
+    cdef npc.ndarray c_ramify(self, str kmer):
+        cdef npc.ndarray rft = self.ramifier.c_ramify(kmer)
+        cdef npc.ndarray centered_scaled = (rft - self.center)
+        return np.dot(self.rotation, centered_scaled)[:self.d]
+
+    def ramify(self, str kmer):
+        return self.c_ramify(kmer)
+
+    @classmethod
+    def from_file(cls, d, filepath):
+        saved_rotation = loads(open(filepath).read())
+        return cls(
+            saved_rotation['k'],
+            d,
+            np.array(saved_rotation['rotation'], dtype=float),
+            np.array(saved_rotation['center'], dtype=float),
+            np.array(saved_rotation['scale'], dtype=float),
+        )
+
+    @classmethod
+    def from_dict(cls, saved_dict):
+        return cls(
+            saved_dict['k'],
+            saved_dict['d'],
+            np.array(saved_dict['rotation'], dtype=float),
+            np.array(saved_dict['center'], dtype=float),
+            np.array(saved_dict['scale'], dtype=float),
+        )
+
+
 cdef class StatisticalRam:
     """Identify center, scale, and rotation on a set of k-mers.
 

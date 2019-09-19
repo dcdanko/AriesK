@@ -20,6 +20,16 @@ cdef class RotatingRamifier:
     cdef npc.ndarray c_ramify(self, str kmer)
 
 
+cdef class UnscaledRotatingRamifier:
+    """Project k-mers into RFT space with PCA."""
+    cdef public Ramifier ramifier
+    cdef public long k, d
+    cdef public double [:, :] rs_matrix, rotation
+    cdef public double [:] center, scale
+
+    cdef npc.ndarray c_ramify(self, str kmer)
+
+
 cdef class StatisticalRam:
     """Identify center, scale, and rotation on a set of k-mers.
 

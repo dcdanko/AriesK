@@ -5,7 +5,7 @@ import numpy as np
 from time import clock
 
 from ariesk.dists import DistanceFactory
-from ariesk.ram import RotatingRamifier
+from ariesk.ram import RotatingRamifier, UnscaledRotatingRamifier
 from ariesk.linear_searcher import LinearSearcher
 
 
@@ -62,6 +62,26 @@ def add_rotation_dists(dimensions, kmer_cols, outfile, rotation, dist_table):
     header = dist_table.readline().strip() + f',rotation_dist_{dimensions}\n'
     outfile.write(header)
     ramifier = RotatingRamifier.from_file(dimensions, rotation)
+    for line in dist_table:
+        line = line.strip()
+        tkns = line.split(',')
+        k1, k2 = tkns[kmer_cols[0]], tkns[kmer_cols[1]]
+        rft1, rft2 = ramifier.ramify(k1), ramifier.ramify(k2)
+        d = np.linalg.norm(rft1 - rft2)
+        outfile.write(line + f',{d}\n')
+
+
+@dev_cli.command('add-unscaled-rotation-dists')
+@click.option('-d', '--dimensions', default=8)
+@click.option('-k', '--kmer-cols', nargs=2, default=(1, 2))
+@click.option('-o', '--outfile', default='-', type=click.File('w'))
+@click.argument('rotation', type=click.Path())
+@click.argument('dist_table', type=click.File('r'))
+def add_rotation_dists(dimensions, kmer_cols, outfile, rotation, dist_table):
+    """Add rotation distances to an existing distance table."""
+    header = dist_table.readline().strip() + f',rotation_dist_{dimensions}\n'
+    outfile.write(header)
+    ramifier = UnscaledRotatingRamifier.from_file(dimensions, rotation)
     for line in dist_table:
         line = line.strip()
         tkns = line.split(',')
