@@ -14,12 +14,12 @@ cdef class Ramifier:
         self.k = k
         self.rs_matrix = build_rs_matrix(self.k)
 
-    cdef npc.ndarray c_ramify(self, str kmer):
-        cdef long [:, :] binary_kmer = np.array([
-            [1 if base == seqb else 0 for seqb in kmer]
-            for base in 'ACGT'
-        ]).T
-        cdef npc.ndarray rft = abs(np.dot(self.rs_matrix, binary_kmer)).flatten()
+    cdef npc.ndarray c_ramify(self, npc.uint8_t [:] binary_kmer):
+        cdef long [:, :] kmer_matrix = np.zeros((4, self.k))
+        cdef int j
+        for j in range(self.k):
+            kmer_matrix[binary_kmer[j], j] = 1
+        cdef npc.ndarray rft = abs(np.dot(self.rs_matrix, kmer_matrix)).flatten()
         return rft
 
     def ramify(self, str kmer):
@@ -29,59 +29,21 @@ cdef class Ramifier:
 cdef class RotatingRamifier:
     """Project k-mers into RFT space with PCA."""
 
-    def __cinit__(self, k, d, rotation, center, scale):
+    def __cinit__(self, k, d, rotation, center, scale, use_scale=False):
         self.k = k
         self.d = d
         self.rotation = rotation
         self.center = center
         self.scale = scale
         self.ramifier = Ramifier(self.k)
+        self.use_scale = use_scale
 
-    cdef npc.ndarray c_ramify(self, str kmer):
-        cdef npc.ndarray rft = self.ramifier.c_ramify(kmer)
-        cdef npc.ndarray centered_scaled = (rft - self.center) / self.scale
-        return np.dot(self.rotation, centered_scaled)[:self.d]
-
-    def ramify(self, str kmer):
-        return self.c_ramify(kmer)
-
-    @classmethod
-    def from_file(cls, d, filepath):
-        saved_rotation = loads(open(filepath).read())
-        return cls(
-            saved_rotation['k'],
-            d,
-            np.array(saved_rotation['rotation'], dtype=float),
-            np.array(saved_rotation['center'], dtype=float),
-            np.array(saved_rotation['scale'], dtype=float),
-        )
-
-    @classmethod
-    def from_dict(cls, saved_dict):
-        return cls(
-            saved_dict['k'],
-            saved_dict['d'],
-            np.array(saved_dict['rotation'], dtype=float),
-            np.array(saved_dict['center'], dtype=float),
-            np.array(saved_dict['scale'], dtype=float),
-        )
-
-
-cdef class UnscaledRotatingRamifier:
-    """Project k-mers into RFT space with PCA."""
-
-    def __cinit__(self, k, d, rotation, center, scale):
-        self.k = k
-        self.d = d
-        self.rotation = rotation
-        self.center = center
-        self.scale = scale
-        self.ramifier = Ramifier(self.k)
-
-    cdef npc.ndarray c_ramify(self, str kmer):
-        cdef npc.ndarray rft = self.ramifier.c_ramify(kmer)
-        cdef npc.ndarray centered_scaled = (rft - self.center)
-        return np.dot(self.rotation, centered_scaled)[:self.d]
+    cdef npc.ndarray c_ramify(self, npc.uint8_t [:] binary_kmer):
+        cdef npc.ndarray rft = self.ramifier.c_ramify(binary_kmer)
+        cdef npc.ndarray centered = (rft - self.center)
+        if self.use_scale:
+            centered /= self.scale
+        return np.dot(self.rotation, centered)[:self.d]
 
     def ramify(self, str kmer):
         return self.c_ramify(kmer)

@@ -30,8 +30,13 @@ cdef class GridCoverBuilder:
         return centroid_str
 
     cpdef add_kmer(self, str kmer):
-        cdef double [:] centroid_rft = np.floor(self.ramifier.c_ramify(kmer) / self.db.box_side_len)
-        self.db.add_point_to_cluster(centroid_rft, kmer)
+        cdef dict base_map = {'A': 0, 'C': 1, 'T': 2, 'G': 3}  
+        cdef npc.uint8_t [:] binary_kmer = np.array([base_map[base] for base in kmer], dtype=np.uint8)
+        self.c_add_kmer(binary_kmer)
+
+    cdef c_add_kmer(self, npc.uint8_t [:] binary_kmer):
+        cdef double [:] centroid_rft = np.floor(self.ramifier.c_ramify(binary_kmer) / self.db.box_side_len)
+        self.db.add_point_to_cluster(centroid_rft, binary_kmer)
         self.num_kmers_added += 1
 
     def commit(self):

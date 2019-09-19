@@ -1,9 +1,13 @@
 
 import sqlite3
 import numpy as np
+cimport numpy as npc
 
 from multiprocessing import Lock
 from pybloom import BloomFilter
+
+from libcpp.string cimport string
+from libcpp.vector cimport vector
 
 from .ram cimport RotatingRamifier
 
@@ -18,9 +22,9 @@ cdef class GridCoverDB:
         self.conn = conn
         self.cursor = self.conn.cursor()
         self.cursor.execute('CREATE TABLE IF NOT EXISTS basics (name text, value text)')
-        self.cursor.execute('CREATE TABLE IF NOT EXISTS kmers (centroid_id int, seq text)')
+        self.cursor.execute('CREATE TABLE IF NOT EXISTS kmers (centroid_id int, seq BLOB)')
         self.cursor.execute('CREATE INDEX IF NOT EXISTS IX_kmers_centroid ON kmers(centroid_id)')
-        self.cursor.execute('CREATE TABLE IF NOT EXISTS centroids (centroid_id int, vals text)')
+        self.cursor.execute('CREATE TABLE IF NOT EXISTS centroids (centroid_id int, vals BLOB)')
 
         self.centroid_cache = {}
         self.cluster_cache = {}
@@ -41,59 +45,67 @@ cdef class GridCoverDB:
             self.save_ramifier()
 
     cpdef get_kmers(self):
-        return list(self.cursor.execute('SELECT * FROM kmers'))
+        cdef dict base_map = {0: 'A', 1: 'C', 2: 'G', 3: 'T'}
+        cdef list out = []
+        for cid, binary_kmer in self.cursor.execute('SELECT * FROM kmers'):
+            binary_kmer = np.frombuffer(binary_kmer, dtype=np.uint8)
+            kmer = ''.join([base_map[base] for base in binary_kmer])
+            out.append((cid, kmer))
+        return out
 
-    cpdef get_cluster_members(self, int centroid_id):
+    def py_get_cluster_members(self, int centroid_id):
+        return np.array(self.get_cluster_members(centroid_id))
+
+    cdef npc.uint8_t [:, :] get_cluster_members(self, int centroid_id):
         """Retrieve the members of a cluster. 
 
         Called often during search, wrapped with cache.
         """
         if centroid_id in self.cluster_cache:
             return self.cluster_cache[centroid_id]
-        vals = self.cursor.execute('SELECT seq FROM kmers WHERE centroid_id=?', (centroid_id,))
-        vals = simple_list(vals)
-        self.cluster_cache[centroid_id] = vals
-        return vals
+        cdef int i, j
+        cdef list kmers = simple_list(self.cursor.execute('SELECT seq FROM kmers WHERE centroid_id=?', (centroid_id,)))
+        cdef npc.uint8_t [:, :] binary_kmers = np.ndarray((len(kmers), self.ramifier.k), dtype=np.uint8)
+        cdef const npc.uint8_t [:] binary_kmer
+        for i, kmer in enumerate(kmers):
+            binary_kmer = np.frombuffer(kmer, dtype=np.uint8)
+            for j in range(self.ramifier.k):
+                binary_kmers[i, j] = binary_kmer[j]
+        self.cluster_cache[centroid_id] = binary_kmers
+        return binary_kmers
 
-    cpdef get_bloom_filter(self, int centroid_id):
-        try:
+    cdef get_bloom_filter(self, int centroid_id):
+        if centroid_id in self.bloom_cache[centroid_id]:
             return self.bloom_cache[centroid_id]
-        except KeyError:
-            vals = self.get_cluster_members(centroid_id)
-            bloom_filter = BloomFilter(1000, error_rate=0.05)
-            k = -1
-            for val in vals:
-                if k < 0:
-                    k = len(val)
-                for i in range(k - 5 + 1):
-                    bloom_filter.add(val[i:i + 5])
-            self.bloom_cache[centroid_id] = bloom_filter
+
+        cdef npc.uint8_t [:, :] vals = self.get_cluster_members(centroid_id)
+        bloom_filter = BloomFilter(1000, error_rate=0.05)
+        for i in range(vals.shape[0]):
+            for j in range(self.ramifier.k - 5 + 1):
+                bloom_filter.add(vals[i, j:j + 5])
+        self.bloom_cache[centroid_id] = bloom_filter
         return bloom_filter
 
-    cpdef _add_pre_point_to_cluster(self, str centroid_str, str kmer):
-        try:
-            centroid_id = self.centroid_cache[centroid_str]
-        except KeyError:
-            centroid_id = len(self.centroid_cache)
-            self.centroid_cache[centroid_str] = centroid_id
-            self.cursor.execute('INSERT INTO centroids VALUES (?,?)', (centroid_id, centroid_str))
 
-        self.cursor.execute('INSERT INTO kmers VALUES (?,?)', (centroid_id, kmer))
+    def py_add_point_to_cluster(self, npc.ndarray centroid, str kmer):
+        cdef dict base_map = {'A': 0., 'C': 1., 'G': 2, 'T': 3}
+        cdef npc.uint8_t [:] binary_kmer = np.array([base_map[base] for base in kmer], dtype=np.uint8)
+        self.add_point_to_cluster(centroid, binary_kmer)
 
-    cpdef add_point_to_cluster(self, centroid, str kmer):
+    cdef add_point_to_cluster(self, double [:] centroid, npc.uint8_t [:] binary_kmer):
         """Store a new point in the db. centroid is not assumed to exist.
 
         Called often during build/merge
         """
-        centroid_str = ','.join([str(el) for el in centroid])
-        try:
-            centroid_id = self.centroid_cache[centroid_str]
-        except KeyError:
+        cdef int centroid_id
+        if tuple(centroid) in self.centroid_cache:
+            centroid_id = self.centroid_cache[tuple(centroid)]
+        else:
             centroid_id = len(self.centroid_cache)
-            self.centroid_cache[centroid_str] = centroid_id
-            self.cursor.execute('INSERT INTO centroids VALUES (?,?)', (centroid_id, centroid_str))
+            self.centroid_cache[tuple(centroid)] = centroid_id
+            self.cursor.execute('INSERT INTO centroids VALUES (?,?)', (centroid_id, np.array(centroid, dtype=float).tobytes()))
 
-        self.cursor.execute('INSERT INTO kmers VALUES (?,?)', (centroid_id, kmer))
+        self.cursor.execute('INSERT INTO kmers VALUES (?,?)', (centroid_id, np.array(binary_kmer, dtype=np.uint8).tobytes()))
 
 
     cdef double [:, :] c_get_centroids(self):
@@ -102,10 +114,13 @@ cdef class GridCoverDB:
         Called just once on database load.
         """
         centroid_strs = list(self.cursor.execute('SELECT * FROM centroids'))
+        cdef int i, j
         cdef double [:, :] centroids = np.ndarray((len(centroid_strs), self.ramifier.d))
+        cdef const double [:] centroid
         for i, centroid_str in centroid_strs:
-            for j, val in enumerate(centroid_str.split(',')):
-                centroids[i, j] = float(val)
+            centroid = np.frombuffer(centroid_str, dtype=float, count=self.ramifier.d)
+            for j in range(self.ramifier.d):
+                centroids[i, j] = centroid[j]
         return centroids
 
     def close(self):
