@@ -41,8 +41,15 @@ cdef class GridCoverSearcher:
     cpdef _fine_search(self,
                        str query_kmer, int center,
                        double inner_radius=0.2, inner_metric='needle'):
+        query_submers = {query_kmer[i:i + 5] for i in range(len(query_kmer) - 5 + 1)}
+        bloom_filter = self.db.get_bloom_filter(center)
+        count = sum([1 if el in bloom_filter else 0 for el in query_submers])
+        min_count = len(query_kmer) + 1 - 5 * (1 + int(inner_radius * len(query_kmer)))
+        if count < min_count:
+            return []
         out = []
         for kmer in self.db.get_cluster_members(center):
+
             if inner_metric == 'none':
                 out.append(kmer)
             elif inner_metric == 'needle':

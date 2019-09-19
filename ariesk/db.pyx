@@ -3,6 +3,7 @@ import sqlite3
 import numpy as np
 
 from multiprocessing import Lock
+from pybloom import BloomFilter
 
 from .ram cimport RotatingRamifier
 
@@ -23,6 +24,7 @@ cdef class GridCoverDB:
 
         self.centroid_cache = {}
         self.cluster_cache = {}
+        self.bloom_cache = {}
         if ramifier is None:
             self.ramifier = self.load_ramifier()
             self.box_side_len = float(self.cursor.execute(
@@ -52,6 +54,21 @@ cdef class GridCoverDB:
         vals = simple_list(vals)
         self.cluster_cache[centroid_id] = vals
         return vals
+
+    cpdef get_bloom_filter(self, int centroid_id):
+        try:
+            return self.bloom_cache[centroid_id]
+        except KeyError:
+            vals = self.get_cluster_members(centroid_id)
+            bloom_filter = BloomFilter(1000, error_rate=0.05)
+            k = -1
+            for val in vals:
+                if k < 0:
+                    k = len(val)
+                for i in range(k - 5 + 1):
+                    bloom_filter.add(val[i:i + 5])
+            self.bloom_cache[centroid_id] = bloom_filter
+        return bloom_filter
 
     cpdef _add_pre_point_to_cluster(self, str centroid_str, str kmer):
         try:
