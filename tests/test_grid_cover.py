@@ -47,13 +47,13 @@ class TestGridCover(TestCase):
     def test_one_coarse_search_grid_cover_broad(self):
         grid = GridCoverSearcher.from_filepath(GRID_COVER)
         query = 'AATACGTCCGGAGTATCGACGCACACATGGT'
-        results = grid._coarse_search(query, 10)
+        results = grid.py_coarse_search(query, 10)
         self.assertGreater(len(results), 0)
 
     def test_one_search_grid_cover_broad(self):
         grid = GridCoverSearcher.from_filepath(GRID_COVER)
         query = 'AATACGTCCGGAGTATCGACGCACACATGGT'
-        results = grid.search(query, 10)
+        results = grid.py_search(query, 10)
         self.assertIn(query, results)
 
     def test_all_coarse_search_grid_cover_broad(self):
@@ -61,7 +61,7 @@ class TestGridCover(TestCase):
         n_hits, n_kmers = 0, 0
         for centroid_id, kmer in grid.db.get_kmers():
             n_kmers += 1
-            results = grid._coarse_search(kmer, 10)
+            results = grid.py_coarse_search(kmer, 10)
             if centroid_id in results:
                 n_hits += 1
         self.assertEqual(n_hits, n_kmers)
@@ -69,7 +69,7 @@ class TestGridCover(TestCase):
     def test_one_search_grid_cover_tight(self):
         grid = GridCoverSearcher.from_filepath(GRID_COVER)
         query = 'ATGATCCTTCCGCCAAAGTACGTCCGGAGCA'
-        results = grid.search(query, 0.0001)
+        results = grid.py_search(query, 0.0001)
         self.assertIn(query, results)
         self.assertGreaterEqual(len(results), 1)
 
@@ -78,7 +78,7 @@ class TestGridCover(TestCase):
         n_hits, n_kmers = 0, 0
         for _, kmer in grid.db.get_kmers():
             n_kmers += 1
-            results = grid.search(kmer, 10)
+            results = grid.py_search(kmer, 10)
             if kmer in results:
                 n_hits += 1
         self.assertEqual(n_hits, n_kmers)
@@ -88,7 +88,7 @@ class TestGridCover(TestCase):
         n_hits, n_kmers = 0, 0
         for centroid_id, kmer in grid.db.get_kmers():
             n_kmers += 1
-            results = grid._coarse_search(kmer, 0.0001)
+            results = grid.py_coarse_search(kmer, 0.0001)
             if centroid_id in results:
                 n_hits += 1
         self.assertEqual(n_hits, n_kmers)
@@ -99,7 +99,7 @@ class TestGridCover(TestCase):
         n_hits, n_kmers = 0, 0
         for _, kmer in grid.db.get_kmers():
             n_kmers += 1
-            results = grid.search(kmer, 0.0001)
+            results = grid.py_search(kmer, 0.0001)
             if kmer in results:
                 n_hits += 1
         self.assertEqual(n_hits, n_kmers)

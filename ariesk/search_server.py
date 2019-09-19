@@ -85,7 +85,7 @@ class SearchServer:
         self.running = False
 
     def full_search(self, msg):
-        results = self.grid.search(
+        results = self.grid.py_search(
             msg['query'],
             msg['outer_radius'],
             inner_radius=msg['inner_radius'],
@@ -106,7 +106,7 @@ class SearchServer:
         return results
 
     def coarse_search(self, msg):
-        results = self.grid._coarse_search(
+        results = self.grid.py_coarse_search(
             msg['query'],
             msg['outer_radius'],
         )

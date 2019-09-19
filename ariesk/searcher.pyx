@@ -17,7 +17,7 @@ from .utils cimport (
 cdef class GridCoverSearcher:
     cdef public GridCoverDB db
     cdef public float radius
-    cdef public double [:, :] centroid_rfts
+    cdef public double[:, :] centroid_rfts
     cdef public RotatingRamifier ramifier
 
     cdef public object tree
@@ -33,59 +33,85 @@ cdef class GridCoverSearcher:
                 self.centroid_rfts[i, j] += (self.db.box_side_len / 2)
         self.tree = cKDTree(self.centroid_rfts)
 
-    cpdef _coarse_search(self, str kmer, double search_radius, double eps=1.01):
+    def py_coarse_search(self, str kmer, double search_radius, double eps=1.01):
+        return self._coarse_search(encode_kmer(kmer), search_radius, eps=eps)
+
+    cdef list _coarse_search(self, npc.uint8_t[:] binary_kmer, double search_radius, double eps=1.01):
         cdef double coarse_search_radius = search_radius + (eps * self.radius)
-        cdef double [:] rft = self.ramifier.c_ramify(kmer)
-        centroid_hits = self.tree.query_ball_point(rft, coarse_search_radius)
+        cdef double[:] rft = self.ramifier.c_ramify(binary_kmer)
+        cdef list centroid_hits = self.tree.query_ball_point(rft, coarse_search_radius)
         return centroid_hits
 
-    cpdef _fine_search(self,
-                       str query_kmer, int center,
-                       double inner_radius=0.2, inner_metric='needle'):
-        query_submers = {query_kmer[i:i + 5] for i in range(len(query_kmer) - 5 + 1)}
-        bloom_filter = self.db.get_bloom_filter(center)
-        count = sum([1 if el in bloom_filter else 0 for el in query_submers])
-        min_count = len(query_kmer) + 1 - 5 * (1 + int(inner_radius * len(query_kmer)))
-        if count < min_count:
-            return []
+    cdef npc.uint8_t[:, :] _fine_search(self, npc.uint8_t[:] binary_query_kmer, int center,
+            double inner_radius=0.2, inner_metric='needle'):
+        cdef npc.uint8_t[:, :] kmers = self.db.get_cluster_members(center)
+        cdef npc.uint8_t[:, :] out = np.ndarray((kmers.shape[0], self.ramifier.k), dtype=np.uint8)
+        cdef int i, j
+        cdef int added = 0
+        cdef bint add
 
-        out = []
-        for kmer in self.db.get_cluster_members(center):
-
+        for i in range(kmers.shape[0]):
+            add = False
             if inner_metric == 'none':
-                out.append(kmer)
+                add = True
             elif inner_metric == 'needle':
-                inner = needle_dist(query_kmer, kmer, True)
-                if inner < inner_radius:
-                    out.append(kmer)
+                inner = needle_dist(binary_query_kmer, kmers[i, :], True)
+                add = inner < inner_radius
             elif inner_metric == 'hamming':
-                inner = hamming_dist(query_kmer, kmer, True)
-                if inner < inner_radius:
-                    out.append(kmer)
+                inner = hamming_dist(binary_query_kmer, kmers[i, :], True)
+                add = inner < inner_radius
+            if add:
+                for j in range(self.ramifier.k):
+                    out[added, j] = kmers[i, j]
+                added += 1
+        out = out[0:added, :]
         return out
 
-    cpdef search(self,
-                 str kmer, double search_radius,
-                 double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
-        out = []
-        for center in self._coarse_search(kmer, search_radius, eps=eps):
-            out += self._fine_search(
-                kmer, center,
-                inner_radius=inner_radius, inner_metric=inner_metric
+    def py_search(self, str kmer, double search_radius,
+        double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
+        cdef npc.uint8_t[:, :] hits = np.array(self.search(
+            encode_kmer(kmer),
+            search_radius,
+            inner_radius=inner_radius,
+            eps=eps,
+            inner_metric=inner_metric
+        ), dtype=np.uint8)
+        cdef list out = []
+        cdef int i
+
+        for i in range(hits.shape[0]):
+            out.append(decode_kmer(hits[i, :]))
+        return out
+
+    cdef npc.uint8_t[:, :] search(self, npc.uint8_t[:] binary_kmer, double search_radius,
+        double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
+        cdef npc.uint8_t[:, :] out = np.ndarray((0, self.ramifier.k), dtype=np.uint8)
+        cdef list centers = self._coarse_search(binary_kmer, search_radius, eps=eps)
+        cdef int i
+        cdef npc.uint8_t[:, :] searched
+        for center in centers:
+            searched = self._fine_search(
+                binary_kmer, center, inner_radius=inner_radius, inner_metric=inner_metric
             )
+            if searched.shape[0] > 0:
+                out = np.append(out, searched, axis=0)
         return out
 
     def file_search(self,
                     str filepath, str out_filepath, double search_radius,
                     double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
+        cdef str kmer
+        cdef npc.uint8_t[:, :] results
+        cdef int i
         with open(filepath) as f, open(out_filepath, 'w') as o:
             for line in f:
                 kmer = line.strip().split(',')[0].split('\t')[0]
                 results = self.search(
-                    kmer, search_radius,
+                    encode_kmer(kmer), search_radius,
                     inner_radius=inner_radius, inner_metric=inner_metric, eps=eps
                 )
-                for result in results:
+                for i in range(results.shape[0]):
+                    result = decode_kmer(results[i, :])
                     o.write(f'{kmer} {result}\n')
 
     @classmethod
