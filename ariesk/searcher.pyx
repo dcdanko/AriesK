@@ -7,7 +7,8 @@ from scipy.spatial import cKDTree
 from .ram cimport RotatingRamifier
 from .db cimport GridCoverDB
 from .utils cimport (
-    reverse_convert_kmer,
+    encode_kmer,
+    decode_kmer,
     needle_dist,
     hamming_dist,
 )

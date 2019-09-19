@@ -1,8 +1,12 @@
 
+cimport numpy as npc
+
 from .db cimport GridCoverDB
 from .utils cimport (
     needle_dist,
     hamming_dist,
+    encode_kmer,
+    decode_kmer,
 )
 
 
@@ -14,12 +18,15 @@ cdef class LinearSearcher:
 
     cpdef search(self, str query, metric='needle'):
         out = []
-        for _, target in self.db.get_kmers():
+        cdef npc.uint8_t [:] encoded_query = encode_kmer(query)
+        cdef int i
+        cdef npc.uint8_t [:, :] encoded_kmers = self.db.get_encoded_kmers()
+        for i in range(encoded_kmers.shape[0]):
             if metric == 'needle':
-                dist = needle_dist(query, target, False)
+                dist = needle_dist(encoded_query, encoded_kmers[i, :], False)
             elif metric == 'hamming':
-                dist = hamming_dist(query, target, False)
-            out.append((target, dist))
+                dist = hamming_dist(encoded_query, encoded_kmers[i, :], False)
+            out.append((decode_kmer(encoded_kmers[i, :]), dist))
         return out
 
     @classmethod

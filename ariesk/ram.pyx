@@ -6,6 +6,11 @@ from .ramft import build_rs_matrix
 
 from json import loads
 
+from .utils cimport (
+    encode_kmer,
+    decode_kmer,
+)
+
 
 cdef class Ramifier:
     """Project k-mers into RFT space."""
@@ -15,15 +20,15 @@ cdef class Ramifier:
         self.rs_matrix = build_rs_matrix(self.k)
 
     cdef npc.ndarray c_ramify(self, npc.uint8_t [:] binary_kmer):
-        cdef long [:, :] kmer_matrix = np.zeros((4, self.k))
-        cdef int j
-        for j in range(self.k):
-            kmer_matrix[binary_kmer[j], j] = 1
+        cdef long [:, :] kmer_matrix = np.zeros((self.k, 4), dtype=int)
+        cdef int i
+        for i in range(self.k):
+            kmer_matrix[i, binary_kmer[i]] = 1
         cdef npc.ndarray rft = abs(np.dot(self.rs_matrix, kmer_matrix)).flatten()
         return rft
 
     def ramify(self, str kmer):
-        return self.c_ramify(kmer)
+        return self.c_ramify(encode_kmer(kmer))
 
 
 cdef class RotatingRamifier:
@@ -46,7 +51,7 @@ cdef class RotatingRamifier:
         return np.dot(self.rotation, centered)[:self.d]
 
     def ramify(self, str kmer):
-        return self.c_ramify(kmer)
+        return self.c_ramify(encode_kmer(kmer))
 
     @classmethod
     def from_file(cls, d, filepath):
@@ -85,7 +90,7 @@ cdef class StatisticalRam:
 
     cpdef add_kmer(self, str kmer):
         assert self.num_kmers_added < self.max_size
-        cdef double [:] rft = self.ramifier.c_ramify(kmer)
+        cdef double [:] rft = self.ramifier.c_ramify(encode_kmer(kmer))
         self.rfts[self.num_kmers_added] = rft
         self.num_kmers_added += 1
 

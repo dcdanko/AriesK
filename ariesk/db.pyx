@@ -9,6 +9,7 @@ from pybloom import BloomFilter
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 
+from utils cimport encode_kmer, decode_kmer
 from .ram cimport RotatingRamifier
 
 
@@ -45,13 +46,24 @@ cdef class GridCoverDB:
             self.save_ramifier()
 
     cpdef get_kmers(self):
-        cdef dict base_map = {0: 'A', 1: 'C', 2: 'G', 3: 'T'}
         cdef list out = []
+        cdef const npc.uint8_t [:] binary_kmer
         for cid, binary_kmer in self.cursor.execute('SELECT * FROM kmers'):
             binary_kmer = np.frombuffer(binary_kmer, dtype=np.uint8)
-            kmer = ''.join([base_map[base] for base in binary_kmer])
+            kmer = decode_kmer(binary_kmer)
             out.append((cid, kmer))
         return out
+
+    cdef npc.uint8_t [:, :] get_encoded_kmers(self):
+        cdef int i, j
+        cdef list kmers = simple_list(self.cursor.execute('SELECT seq FROM kmers'))
+        cdef npc.uint8_t [:, :] binary_kmers = np.ndarray((len(kmers), self.ramifier.k), dtype=np.uint8)
+        cdef const npc.uint8_t [:] binary_kmer
+        for i, kmer in enumerate(kmers):
+            binary_kmer = np.frombuffer(kmer, dtype=np.uint8)
+            for j in range(self.ramifier.k):
+                binary_kmers[i, j] = binary_kmer[j]
+        return binary_kmers
 
     def py_get_cluster_members(self, int centroid_id):
         return np.array(self.get_cluster_members(centroid_id))
@@ -88,8 +100,7 @@ cdef class GridCoverDB:
 
 
     def py_add_point_to_cluster(self, npc.ndarray centroid, str kmer):
-        cdef dict base_map = {'A': 0., 'C': 1., 'G': 2, 'T': 3}
-        cdef npc.uint8_t [:] binary_kmer = np.array([base_map[base] for base in kmer], dtype=np.uint8)
+        cdef npc.uint8_t [:] binary_kmer = encode_kmer(kmer)
         self.add_point_to_cluster(centroid, binary_kmer)
 
     cdef add_point_to_cluster(self, double [:] centroid, npc.uint8_t [:] binary_kmer):

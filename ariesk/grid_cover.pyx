@@ -3,7 +3,7 @@ import sqlite3
 cimport numpy as npc
 
 
-from .utils cimport convert_kmer
+from .utils cimport encode_kmer
 from .ram cimport RotatingRamifier
 from .db cimport GridCoverDB
 
@@ -30,8 +30,7 @@ cdef class GridCoverBuilder:
         return centroid_str
 
     cpdef add_kmer(self, str kmer):
-        cdef dict base_map = {'A': 0, 'C': 1, 'T': 2, 'G': 3}  
-        cdef npc.uint8_t [:] binary_kmer = np.array([base_map[base] for base in kmer], dtype=np.uint8)
+        cdef npc.uint8_t [:] binary_kmer = encode_kmer(kmer)
         self.c_add_kmer(binary_kmer)
 
     cdef c_add_kmer(self, npc.uint8_t [:] binary_kmer):

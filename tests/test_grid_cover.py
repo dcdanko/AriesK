@@ -9,7 +9,6 @@ from unittest import TestCase
 from ariesk.ram import RotatingRamifier
 from ariesk.grid_cover import GridCoverBuilder
 from ariesk.searcher import GridCoverSearcher
-from ariesk.utils import py_reverse_convert_kmer
 from ariesk.db import GridCoverDB
 from ariesk.parallel_build import coordinate_parallel_build
 

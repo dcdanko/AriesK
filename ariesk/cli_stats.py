@@ -7,7 +7,6 @@ from time import clock
 
 from ariesk.searcher import GridCoverSearcher
 from ariesk.db import GridCoverDB
-from .utils import py_reverse_convert_kmer
 
 
 @click.group('stats')

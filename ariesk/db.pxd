@@ -18,6 +18,7 @@ cdef class GridCoverDB:
     cdef public dict bloom_cache
 
     cpdef get_kmers(self)
+    cdef npc.uint8_t [:, :] get_encoded_kmers(self)
     cdef npc.uint8_t [:, :] get_cluster_members(self, int centroid_id)
     cdef get_bloom_filter(self, int centroid_id)
     cdef add_point_to_cluster(self, double [:] centroid, npc.uint8_t [:] kmer)

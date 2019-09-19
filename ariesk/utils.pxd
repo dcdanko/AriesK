@@ -2,8 +2,8 @@
 cimport numpy as npc
 
 
-cdef long [:] convert_kmer(str kmer, int k)
-cdef str reverse_convert_kmer(long [:] kmer)
+cdef npc.uint8_t [:] encode_kmer(str kmer)
+cdef str decode_kmer(const npc.uint8_t [:] binary_kmer)
 
-cdef double needle_dist(k1, k2, normalize)
-cdef double hamming_dist(k1, k2, normalize)
+cdef double needle_dist(npc.uint8_t [:] k1, npc.uint8_t [:] k2, bint normalize)
+cdef double hamming_dist(npc.uint8_t [:] k1, npc.uint8_t [:] k2, bint normalize)

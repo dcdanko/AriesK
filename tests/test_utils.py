@@ -6,7 +6,7 @@ from os.path import join, dirname
 from unittest import TestCase
 from ariesk.dists import DistanceFactory
 
-from ariesk.utils import py_convert_kmer, py_reverse_convert_kmer
+from ariesk.utils import py_encode_kmer, py_decode_kmer
 from ariesk.linear_searcher import LinearSearcher
 
 KMER_TABLE = join(dirname(__file__), 'small_31mer_table.csv')
@@ -23,22 +23,22 @@ class TestUtils(TestCase):
 
     def test_encode_decode_one_kmer(self):
         kmer = 'ATCG'
-        code = py_convert_kmer(kmer)
-        decoded = py_reverse_convert_kmer(code)
+        code = py_encode_kmer(kmer)
+        decoded = py_decode_kmer(code)
         self.assertEqual(kmer, decoded)
 
     def test_encode_decode_one_large_kmer(self):
         kmer = 'ATCG' * 128
-        code = py_convert_kmer(kmer)
-        decoded = py_reverse_convert_kmer(code)
+        code = py_encode_kmer(kmer)
+        decoded = py_decode_kmer(code)
         self.assertEqual(kmer, decoded)
 
     def test_encode_decode_many_kmers(self):
         for _ in range(10):
             for k in range(20, 40):
                 kmer = random_kmer(k)
-                code = py_convert_kmer(kmer)
-                decoded = py_reverse_convert_kmer(code)
+                code = py_encode_kmer(kmer)
+                decoded = py_decode_kmer(code)
                 self.assertEqual(kmer, decoded)
 
     def test_dists(self):
