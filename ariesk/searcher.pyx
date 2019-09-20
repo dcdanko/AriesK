@@ -109,7 +109,7 @@ cdef class GridCoverSearcher:
             cluster = self.db.get_cluster(center)
             if self.logging:
                 n_points_original += cluster.seqs.shape[0]
-            if inner_metric != 'none':
+            if inner_metric == 'none':
                 filtered_centers.append(cluster)
             elif cluster.test_membership(binary_kmer, max_misses):
                 filtered_centers.append(cluster)
