@@ -20,11 +20,27 @@ def run_server():
     SearchServer.from_filepath(PORT, GRID_COVER, auto_start=True)
 
 
+def run_verbose_server():
+    SearchServer.from_filepath(PORT, GRID_COVER, auto_start=True, logger=lambda el: print(el))
+
+
 class TestSearchServer(TestCase):
 
     def test_search_server(self):
         client = SearchClient(PORT)
         server_thread = KThread(target=run_server)
+        try:
+            server_thread.start()
+            results = list(client.search(KMER_31, 0.001, 0.1))
+            client.send_shutdown()
+            self.assertIn(KMER_31, results)
+        finally:
+            if server_thread.is_alive():
+                server_thread.terminate()
+
+    def test_search_server_verbose(self):
+        client = SearchClient(PORT)
+        server_thread = KThread(target=run_verbose_server)
         try:
             server_thread.start()
             results = list(client.search(KMER_31, 0.001, 0.1))
