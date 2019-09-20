@@ -38,8 +38,14 @@ cdef double hamming_dist(npc.uint8_t [:] k1, npc.uint8_t [:] k2, bint normalize)
     return score
 
 
-cdef double needle_dist(npc.uint8_t [:] k1, npc.uint8_t [:] k2, bint normalize):
-    cdef double [:, :] score = np.zeros((k1.shape[0] + 1, k2.shape[0] + 1))
+cdef double needle_dist(npc.uint8_t[:] k1, npc.uint8_t[:] k2, bint normalize):
+    """Return the NW alignment distance."""
+    cdef double[:, :] score = np.zeros((k1.shape[0] + 1, k2.shape[0] + 1))
+    return needle_fast(k1, k2, normalize, score)
+
+
+cdef double needle_fast(npc.uint8_t[:] k1, npc.uint8_t[:] k2, bint normalize, double[:, :] score):
+    """Return NW alignment using pre-allocated RAM."""
     cdef double match_score = 0
     cdef double mismatch_penalty = 1
     cdef double gap_penalty = 1

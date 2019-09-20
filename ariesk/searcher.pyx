@@ -4,12 +4,14 @@ cimport numpy as npc
 
 from scipy.spatial import cKDTree
 
+from libc.math cimport ceil
 from .ram cimport RotatingRamifier
 from .db cimport GridCoverDB
+from .cluster cimport Cluster
 from .utils cimport (
     encode_kmer,
     decode_kmer,
-    needle_dist,
+    needle_fast,
     hamming_dist,
 )
 
@@ -42,27 +44,30 @@ cdef class GridCoverSearcher:
         cdef list centroid_hits = self.tree.query_ball_point(rft, coarse_search_radius)
         return centroid_hits
 
-    cdef npc.uint8_t[:, :] _fine_search(self, npc.uint8_t[:] binary_query_kmer, int center,
-            double inner_radius=0.2, inner_metric='needle'):
-        cdef npc.uint8_t[:, :] kmers = self.db.get_cluster_members(center)
-        cdef npc.uint8_t[:, :] out = np.ndarray((kmers.shape[0], self.ramifier.k), dtype=np.uint8)
+    cdef npc.uint8_t[:, :] _fine_search(self, npc.uint8_t[:] query_kmer, int center,
+                                        double inner_radius=0.2, inner_metric='needle'):
+        """Search a single cluster and return all members within inner_radius."""
+        cdef Cluster cluster = self.db.get_cluster(center)
+        cdef int max_misses = <int> ceil(inner_radius * query_kmer.shape[0])
+        if inner_metric != 'none':  # Use a bloom filter to check if membership is possible
+            if not cluster.test_membership(query_kmer, max_misses):
+                return np.ndarray((0, self.ramifier.k), dtype=np.uint8)  # null return
+
+        cdef npc.uint8_t[:, :] out = np.ndarray(
+            (cluster.seqs.shape[0], self.ramifier.k),
+            dtype=np.uint8
+        )
+        cdef double[:, :] score = np.zeros((self.ramifier.k + 1, self.ramifier.k + 1))
         cdef int i, j
         cdef int added = 0
-        cdef bint add
-
-        for i in range(kmers.shape[0]):
-            add = False
-            if inner_metric == 'none':
-                add = True
-            elif inner_metric == 'needle':
-                inner = needle_dist(binary_query_kmer, kmers[i, :], True)
-                add = inner < inner_radius
+        for i in range(cluster.seqs.shape[0]):
+            if inner_metric == 'needle':
+                inner = needle_fast(query_kmer, cluster.seqs[i, :], True, score)
             elif inner_metric == 'hamming':
-                inner = hamming_dist(binary_query_kmer, kmers[i, :], True)
-                add = inner < inner_radius
-            if add:
+                inner = hamming_dist(query_kmer, cluster.seqs[i, :], True)
+            if inner_metric == 'none' or inner < inner_radius:
                 for j in range(self.ramifier.k):
-                    out[added, j] = kmers[i, j]
+                    out[added, j] = cluster.seqs[i, j]
                 added += 1
         out = out[0:added, :]
         return out

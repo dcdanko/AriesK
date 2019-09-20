@@ -9,64 +9,32 @@ from distutils.extension import Extension
 extra_compile_args = ['-std=c++11', "-O3", "-ffast-math", "-march=native", "-fopenmp" ]
 extra_link_args = ['-fopenmp']
 
+
+def make_ext(path):
+    name = path.split('.pyx')[0].replace('/', '.')
+    return Extension(
+        name,
+        [path],
+        include_dirs=[numpy.get_include()],
+        extra_compile_args=extra_compile_args,
+        language='c++',
+    )
+
+
 extensions = [
-    Extension(
-        'ariesk.dists',
-        ['ariesk/dists.pyx'],
-        include_dirs=[numpy.get_include()],
-        extra_compile_args=extra_compile_args,
-        language='c++',
-    ),
-    Extension(
-        'ariesk.ram',
-        ['ariesk/ram.pyx'],
-        include_dirs=[numpy.get_include()],
-        extra_compile_args=extra_compile_args,
-        language='c++',
-    ),
-    Extension(
-        'ariesk.grid_cover',
-        ['ariesk/grid_cover.pyx'],
-        include_dirs=[numpy.get_include()],
-        extra_compile_args=extra_compile_args,
-        language='c++',
-    ),
-    Extension(
-        'ariesk.searcher',
-        ['ariesk/searcher.pyx'],
-        include_dirs=[numpy.get_include()],
-        extra_compile_args=extra_compile_args,
-        language='c++',
-    ),
-    Extension(
-        'ariesk.linear_searcher',
-        ['ariesk/linear_searcher.pyx'],
-        include_dirs=[numpy.get_include()],
-        extra_compile_args=extra_compile_args,
-        language='c++',
-    ),
-    Extension(
-        'ariesk.db',
-        ['ariesk/db.pyx'],
-        include_dirs=[numpy.get_include()],
-        extra_compile_args=extra_compile_args,
-        language='c++',
-    ),
-    Extension(
-        'ariesk.bloom_filter',
-        ['ariesk/bloom_filter.pyx'],
-        include_dirs=[numpy.get_include()],
-        extra_compile_args=extra_compile_args,
-        language='c++',
-    ),
-    Extension(
-        'ariesk.utils',
-        ['ariesk/utils.pyx'],
-        include_dirs=[numpy.get_include()],
-        extra_compile_args=extra_compile_args,
-        language='c++',
-    ),
+    make_ext(el) for el in [
+        'ariesk/ram.pyx',
+        'ariesk/grid_cover.pyx',
+        'ariesk/searcher.pyx',
+        'ariesk/linear_searcher.pyx',
+        'ariesk/db.pyx',
+        'ariesk/bloom_filter.pyx',
+        'ariesk/cluster.pyx',
+        'ariesk/utils.pyx',
+    ]
 ]
+
+
 setuptools.setup(
     name='ariesk',
     version='0.1.0',

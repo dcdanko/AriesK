@@ -11,6 +11,7 @@ from libcpp.vector cimport vector
 
 from utils cimport encode_kmer, decode_kmer
 from .ram cimport RotatingRamifier
+from .cluster cimport Cluster
 
 
 cdef simple_list(sql_cursor):
@@ -27,9 +28,8 @@ cdef class GridCoverDB:
         self.cursor.execute('CREATE INDEX IF NOT EXISTS IX_kmers_centroid ON kmers(centroid_id)')
         self.cursor.execute('CREATE TABLE IF NOT EXISTS centroids (centroid_id int, vals BLOB)')
 
-        self.centroid_cache = {}
+        self.centroid_cache = {}  # note this is quite small and critical to build performance
         self.cluster_cache = {}
-        self.bloom_cache = {}
         if ramifier is None:
             self.ramifier = self.load_ramifier()
             self.box_side_len = float(self.cursor.execute(
@@ -73,8 +73,6 @@ cdef class GridCoverDB:
 
         Called often during search, wrapped with cache.
         """
-        if centroid_id in self.cluster_cache:
-            return self.cluster_cache[centroid_id]
         cdef int i, j
         cdef list kmers = simple_list(self.cursor.execute('SELECT seq FROM kmers WHERE centroid_id=?', (centroid_id,)))
         cdef npc.uint8_t [:, :] binary_kmers = np.ndarray((len(kmers), self.ramifier.k), dtype=np.uint8)
@@ -83,21 +81,16 @@ cdef class GridCoverDB:
             binary_kmer = np.frombuffer(kmer, dtype=np.uint8)
             for j in range(self.ramifier.k):
                 binary_kmers[i, j] = binary_kmer[j]
-        self.cluster_cache[centroid_id] = binary_kmers
         return binary_kmers
 
-    cdef get_bloom_filter(self, int centroid_id):
-        if centroid_id in self.bloom_cache[centroid_id]:
-            return self.bloom_cache[centroid_id]
-
-        cdef npc.uint8_t [:, :] vals = self.get_cluster_members(centroid_id)
-        bloom_filter = BloomFilter(1000, error_rate=0.05)
-        for i in range(vals.shape[0]):
-            for j in range(self.ramifier.k - 5 + 1):
-                bloom_filter.add(vals[i, j:j + 5])
-        self.bloom_cache[centroid_id] = bloom_filter
-        return bloom_filter
-
+    cdef Cluster get_cluster(self, int centroid_id):
+        if centroid_id in self.cluster_cache:
+            return self.cluster_cache[centroid_id]
+        cdef npc.uint8_t[:, :] seqs = self.get_cluster_members(centroid_id)
+        cdef Cluster cluster = Cluster(centroid_id, seqs)
+        cluster.build_bloom_filter()
+        self.cluster_cache[centroid_id] = cluster
+        return cluster
 
     def py_add_point_to_cluster(self, npc.ndarray centroid, str kmer):
         cdef npc.uint8_t [:] binary_kmer = encode_kmer(kmer)
