@@ -57,6 +57,8 @@ class SearchServer:
         self.socket.bind(f'tcp://*:{port}')
         self.running = False
         self.logger = logger
+        if self.logger:
+            self.grid.add_logger(logger)
         if auto_start:
             self.main_loop()
 

@@ -2,6 +2,7 @@
 import numpy as np
 cimport numpy as npc
 
+from time import time
 from scipy.spatial import cKDTree
 
 from libc.math cimport ceil
@@ -21,6 +22,8 @@ cdef class GridCoverSearcher:
     cdef public float radius
     cdef public double[:, :] centroid_rfts
     cdef public RotatingRamifier ramifier
+    cdef public bint logging
+    cdef public object logger
 
     cdef public object tree
 
@@ -34,6 +37,11 @@ cdef class GridCoverSearcher:
                 self.centroid_rfts[i, j] *= self.db.box_side_len
                 self.centroid_rfts[i, j] += (self.db.box_side_len / 2)
         self.tree = cKDTree(self.centroid_rfts)
+        self.logging = False
+
+    def add_logger(self, logger):
+        self.logging = True
+        self.logger = logger
 
     def py_coarse_search(self, str kmer, double search_radius, double eps=1.01):
         return self._coarse_search(encode_kmer(kmer), search_radius, eps=eps)
@@ -44,15 +52,9 @@ cdef class GridCoverSearcher:
         cdef list centroid_hits = self.tree.query_ball_point(rft, coarse_search_radius)
         return centroid_hits
 
-    cdef npc.uint8_t[:, :] _fine_search(self, npc.uint8_t[:] query_kmer, int center,
+    cdef npc.uint8_t[:, :] _fine_search(self, npc.uint8_t[:] query_kmer, Cluster cluster,
                                         double inner_radius=0.2, inner_metric='needle'):
         """Search a single cluster and return all members within inner_radius."""
-        cdef Cluster cluster = self.db.get_cluster(center)
-        cdef int max_misses = <int> ceil(inner_radius * query_kmer.shape[0])
-        if inner_metric != 'none':  # Use a bloom filter to check if membership is possible
-            if not cluster.test_membership(query_kmer, max_misses):
-                return np.ndarray((0, self.ramifier.k), dtype=np.uint8)  # null return
-
         cdef npc.uint8_t[:, :] out = np.ndarray(
             (cluster.seqs.shape[0], self.ramifier.k),
             dtype=np.uint8
@@ -90,16 +92,48 @@ cdef class GridCoverSearcher:
 
     cdef npc.uint8_t[:, :] search(self, npc.uint8_t[:] binary_kmer, double search_radius,
         double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
+
         cdef npc.uint8_t[:, :] out = np.ndarray((0, self.ramifier.k), dtype=np.uint8)
+        cdef float start_time, elapsed_time
+        if self.logging:
+            start_time = time()
         cdef list centers = self._coarse_search(binary_kmer, search_radius, eps=eps)
+        if self.logging:
+            elapsed_time = time() - start_time
+            self.logger(f'Coarse search complete in {elapsed_time:.5}s. {len(centers)} clusters.')
+
         cdef int i
         cdef npc.uint8_t[:, :] searched
+        cdef Cluster cluster
+        cdef list filtered_centers = []
+        cdef int max_misses = <int> ceil(inner_radius * binary_kmer.shape[0])
+        if self.logging:
+            start_time = time()
         for center in centers:
+            cluster = self.db.get_cluster(center)
+            if inner_metric != 'none':
+                filtered_centers.append(cluster)
+            elif cluster.test_membership(binary_kmer, max_misses):
+                filtered_centers.append(cluster)
+        if self.logging:
+            elapsed_time = time() - start_time
+            self.logger(f'Cluster filtering complete in {elapsed_time:.5}s. {len(filtered_centers)} clusters remaining.')
+            n_points_original = sum([my_cluster.seqs.shape[0] for my_cluster in centers])
+            n_points_filtered = sum([my_cluster.seqs.shape[0] for my_cluster in filtered_centers])
+            self.logger(f'Filtered {n_points_original} candidates to {n_points_filtered}.')
+
+        if self.logging:
+            start_time = time()
+        for cluster in filtered_centers:
             searched = self._fine_search(
-                binary_kmer, center, inner_radius=inner_radius, inner_metric=inner_metric
+                binary_kmer, cluster,
+                inner_radius=inner_radius, inner_metric=inner_metric
             )
             if searched.shape[0] > 0:
                 out = np.append(out, searched, axis=0)
+        if self.logging:
+            elapsed_time = time() - start_time
+            self.logger(f'Fine search complete in {elapsed_time:.5}s. {out.shape[0]} candidates passed.')
         return out
 
     def file_search(self,
