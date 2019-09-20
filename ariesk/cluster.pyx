@@ -21,7 +21,8 @@ cdef class Cluster:
                 self.bloom_filter.add(self.seqs[i, j:j + 5])
 
     cdef bint test_membership(self, npc.uint8_t[:] query_seq, int allowed_misses):
-        cdef int i, n_hits
+        cdef int i
+        cdef int n_hits = 0
         cdef int min_hits = self.seqs.shape[1] - self.sub_k + 1 - (self.sub_k * allowed_misses)
         for i in range(self.seqs.shape[1] - self.sub_k + 1):
             if self.bloom_filter.contains(query_seq[i:i + self.sub_k]):
