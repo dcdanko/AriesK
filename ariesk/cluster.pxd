@@ -11,5 +11,6 @@ cdef class Cluster:
     cdef public BloomFilter bloom_filter
     cdef public int sub_k
 
-    cdef build_bloom_filter(self)
+    cpdef build_bloom_filter(self)
     cdef bint test_membership(self, npc.uint8_t[:] query_seq, int allowed_misses)
+    cdef int count_membership(self, npc.uint8_t[:] query_seq)
