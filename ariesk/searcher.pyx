@@ -116,7 +116,7 @@ cdef class GridCoverSearcher:
         if self.logging:
             self.logger(f'Cluster filtering complete. {len(filtered_centers)} clusters remaining.')
             n_points_filtered = sum([my_cluster.seqs.shape[0] for my_cluster in filtered_centers])
-            self.logger(f'Filtered {n_points_original} candidates to {n_points_filtered}.')
+            self.logger(f'Allowing up to {max_misses} misses filtered {n_points_original} candidates to {n_points_filtered}.')
 
         for cluster in filtered_centers:
             searched = self._fine_search(
