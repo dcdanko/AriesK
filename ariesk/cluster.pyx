@@ -11,14 +11,14 @@ from .utils cimport (
 
 cdef class Cluster:
 
-    def __cinit__(self, centroid_id, seqs, sub_k=7):
+    def __cinit__(self, centroid_id, seqs, sub_k=15):
         self.centroid_id = centroid_id
         self.seqs = seqs
         self.sub_k = sub_k
 
     cpdef build_bloom_filter(self):
         cdef int n_subk = self.seqs.shape[0] * (self.seqs.shape[1] - self.sub_k + 1)
-        self.bloom_filter = BloomFilter(self.sub_k, max(100, n_subk), 0.01)
+        self.bloom_filter = BloomFilter(self.sub_k, max(1000, n_subk), 0.01)
         cdef int i, j
         for i in range(self.seqs.shape[0]):
             for j in range(self.seqs.shape[1] - self.sub_k + 1):
