@@ -26,6 +26,14 @@ class TestUtils(TestCase):
         bf.py_add(kmer)
         self.assertTrue(bf.py_contains(kmer))
 
+    def test_not_in_bloom(self):
+        bf = BloomFilter(5, 500, 0.01)
+        kmer = random_kmer(5)
+        bf.py_add(kmer)
+        self.assertTrue(bf.py_contains(kmer))
+        for _ in range(10):
+            self.assertFalse(bf.py_contains(random_kmer(5)))
+
     def test_intersection(self):
         bf1 = BloomFilter(40, 500, 0.00001)
         bf2 = BloomFilter(40, 500, 0.00001)

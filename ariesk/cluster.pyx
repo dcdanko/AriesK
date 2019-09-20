@@ -24,6 +24,6 @@ cdef class Cluster:
         cdef int i, n_hits
         cdef int min_hits = self.seqs.shape[1] - self.sub_k + 1 - (self.sub_k * allowed_misses)
         for i in range(self.seqs.shape[1] - self.sub_k + 1):
-            if self.bloom_filter.contains(query_seq):
+            if self.bloom_filter.contains(query_seq[i:i + self.sub_k]):
                 n_hits += 1
         return n_hits >= min_hits
