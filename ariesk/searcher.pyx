@@ -2,9 +2,6 @@
 import numpy as np
 cimport numpy as npc
 
-from time import time as pytime
-
-from libc.time cimport time, time_t
 from scipy.spatial import cKDTree
 
 from libc.math cimport ceil
@@ -94,26 +91,20 @@ cdef class GridCoverSearcher:
 
     cdef npc.uint8_t[:, :] search(self, npc.uint8_t[:] binary_kmer, double search_radius,
         double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
-
+        if self.logging:
+            self.logger(f'Starting search.')
         cdef npc.uint8_t[:, :] out = np.ndarray((0, self.ramifier.k), dtype=np.uint8)
         cdef float start_time_1, elapsed_time_1, start_time_2, elapsed_time_2, start_time_3, elapsed_time_3
-        if self.logging:
-            start_time_1 = pytime()
-            self.logger(start_time_1)
         cdef list centers = self._coarse_search(binary_kmer, search_radius, eps=eps)
         if self.logging:
-            elapsed_time_1 = pytime() - start_time_1
-            self.logger(f'Coarse search complete in {elapsed_time_1:.5}s. {len(centers)} clusters.')
+            self.logger(f'Coarse search complete. {len(centers)} clusters.')
 
         cdef int i
         cdef npc.uint8_t[:, :] searched
         cdef Cluster cluster
         cdef list filtered_centers = []
         cdef int max_misses = <int> ceil(inner_radius * binary_kmer.shape[0])
-        if self.logging:
-            start_time_2 = pytime()
-            self.logger(start_time_2)
-            n_points_original = 0
+        cdef int n_points_original = 0
         for center in centers:
             cluster = self.db.get_cluster(center)
             if self.logging:
@@ -123,14 +114,10 @@ cdef class GridCoverSearcher:
             elif cluster.test_membership(binary_kmer, max_misses):
                 filtered_centers.append(cluster)
         if self.logging:
-            elapsed_time_2 = pytime() - start_time_2
-            self.logger(f'Cluster filtering complete in {elapsed_time_2:.5}s. {len(filtered_centers)} clusters remaining.')
+            self.logger(f'Cluster filtering complete. {len(filtered_centers)} clusters remaining.')
             n_points_filtered = sum([my_cluster.seqs.shape[0] for my_cluster in filtered_centers])
             self.logger(f'Filtered {n_points_original} candidates to {n_points_filtered}.')
 
-        if self.logging:
-            start_time_3 = pytime()
-            self.logger(start_time_3)
         for cluster in filtered_centers:
             searched = self._fine_search(
                 binary_kmer, cluster,
@@ -139,8 +126,7 @@ cdef class GridCoverSearcher:
             if searched.shape[0] > 0:
                 out = np.append(out, searched, axis=0)
         if self.logging:
-            elapsed_time_3 = pytime() - start_time_3
-            self.logger(f'Fine search complete in {elapsed_time_3:.5}s. {out.shape[0]} candidates passed.')
+            self.logger(f'Fine search complete. {out.shape[0]} candidates passed.')
         return out
 
     def file_search(self,

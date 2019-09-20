@@ -17,6 +17,19 @@ Allowed client->server message terms. *mandatory
 '''
 
 
+class TimingLogger:
+
+    def __init__(self, logger):
+        self.last_message_time = time()
+        self.logger = logger
+
+    def log(self, msg):
+        time_elapsed = time() - self.last_message_time
+        msg = f'[{time_elapsed:.5}s] {msg}'
+        self.logger(msg)
+        self.last_message_time = time()
+
+
 class SearchClient:
 
     def __init__(self, port, callback=None):
@@ -58,7 +71,8 @@ class SearchServer:
         self.running = False
         self.logger = logger
         if self.logger:
-            self.grid.add_logger(logger)
+            timing_logger = TimingLogger(logger)
+            self.grid.add_logger(timing_logger.log)
         if auto_start:
             self.main_loop()
 
