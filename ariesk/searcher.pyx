@@ -99,10 +99,10 @@ cdef class GridCoverSearcher:
         if self.logging:
             self.logger(f'Coarse search complete. {len(centers)} clusters.')
 
-        cdef int i
+        cdef int i = 0
         cdef npc.uint8_t[:, :] searched
         cdef Cluster cluster
-        cdef list filtered_centers = []
+        cdef npc.uint8_t[:] filtered_centers = np.zeros((len(centers,)), dtype=np.uint8)
         cdef int max_misses = <int> ceil(inner_radius * binary_kmer.shape[0])
         cdef int n_points_original = 0
         for center in centers:
@@ -110,21 +110,25 @@ cdef class GridCoverSearcher:
             if self.logging:
                 n_points_original += cluster.seqs.shape[0]
             if inner_metric == 'none':
-                filtered_centers.append(cluster)
+                filtered_centers[i] = 1
             elif cluster.test_membership(binary_kmer, max_misses):
-                filtered_centers.append(cluster)
+                filtered_centers[i] = 1
+            i += 1
         if self.logging:
-            self.logger(f'Cluster filtering complete. {len(filtered_centers)} clusters remaining.')
-            n_points_filtered = sum([my_cluster.seqs.shape[0] for my_cluster in filtered_centers])
-            self.logger(f'Allowing up to {max_misses} misses filtered {n_points_original} candidates to {n_points_filtered}.')
-
-        for cluster in filtered_centers:
-            searched = self._fine_search(
-                binary_kmer, cluster,
-                inner_radius=inner_radius, inner_metric=inner_metric
-            )
-            if searched.shape[0] > 0:
-                out = np.append(out, searched, axis=0)
+            self.logger(f'Cluster filtering complete. {sum(filtered_centers)} clusters remaining.')
+            self.logger(f'Allowing up to {max_misses}.')
+ 
+        i = -1
+        for center in centers:
+            i += 1
+            if filtered_centers[i] == 1:
+                cluster = self.db.get_cluster(center)
+                searched = self._fine_search(
+                    binary_kmer, cluster,
+                    inner_radius=inner_radius, inner_metric=inner_metric
+                )
+                if searched.shape[0] > 0:
+                    out = np.append(out, searched, axis=0)
         if self.logging:
             self.logger(f'Fine search complete. {out.shape[0]} candidates passed.')
         return out
