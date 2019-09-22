@@ -118,12 +118,13 @@ cdef class GridCoverSearcher:
             self.logger(f'Coarse search complete. {len(centers)} clusters.')
 
         # Filtering
-        cdef npc.uint64_t[:, :] hash_vals = np.ndarray((binary_kmer.shape[0] - sub_k + 1, n_hashes), dtype=np.uint64)
+        cdef int i = 0
+        cdef npc.uint64_t[:, :] hash_vals = np.ndarray((binary_kmer.shape[0] - self.sub_k + 1, self.n_hashes), dtype=np.uint64)
         for i in range(binary_kmer.shape[0] - self.sub_k + 1):
-            for j in range(n_hashes):
+            for j in range(self.n_hashes):
                 hash_vals[i, j] = fnva(binary_kmer[i:i + self.sub_k], self.hash_functions[j, :])
                 hash_vals[i, j] = hash_vals[i, j] % self.array_size
-        cdef int i = 0
+        i = 0
         cdef npc.uint8_t[:, :] searched
         cdef Cluster cluster
         cdef npc.uint8_t[:] filtered_centers = np.zeros((len(centers,)), dtype=np.uint8)
