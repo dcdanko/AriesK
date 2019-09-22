@@ -16,3 +16,5 @@ cdef class Cluster:
     cdef int count_membership(self, npc.uint8_t[:] query_seq)
     cdef int count_membership_hvals(self, npc.uint64_t[:, :] hash_vals)
     cdef bint test_membership_hvals(self, npc.uint64_t[:, :] hash_vals, int allowed_misses)
+    cdef bint test_seq(self, int seq_id, npc.uint8_t[:] row_hits)
+    cdef npc.uint8_t[:] test_row_membership(self, npc.uint64_t[:, :] hash_vals, int allowed_misses)

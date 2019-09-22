@@ -68,6 +68,7 @@ cdef class GridCoverSearcher:
         return centroid_hits
 
     cdef npc.uint8_t[:, :] _fine_search(self, npc.uint8_t[:] query_kmer, Cluster cluster,
+                                        npc.uint8_t[:] row_hits,
                                         double inner_radius=0.2, inner_metric='needle'):
         """Search a single cluster and return all members within inner_radius."""
         cdef npc.uint8_t[:, :] out = np.ndarray(
@@ -78,7 +79,7 @@ cdef class GridCoverSearcher:
         cdef int i, j
         cdef int added = 0
         for i in range(cluster.seqs.shape[0]):
-            if inner_metric == 'needle':
+            if inner_metric == 'needle' and cluster.test_seq(i, row_hits):
                 inner = needle_fast(query_kmer, cluster.seqs[i, :], True, score)
             elif inner_metric == 'hamming':
                 inner = hamming_dist(query_kmer, cluster.seqs[i, :], True)
@@ -89,15 +90,10 @@ cdef class GridCoverSearcher:
         out = out[0:added, :]
         return out
 
-    cdef npc.uint8_t[:] _filter_search(self, npc.uint8_t[:] binary_kmer, list centers, 
-        double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
+    cdef npc.uint8_t[:] _filter_search(self, npc.uint8_t[:] binary_kmer, list centers,
+        npc.uint64_t[:, :] hash_vals, double inner_radius=0.2,
+        double eps=1.01, inner_metric='needle'):
         cdef int i = 0
-        cdef npc.uint64_t[:, :] hash_vals = np.ndarray((binary_kmer.shape[0] - self.sub_k + 1, self.n_hashes), dtype=np.uint64)
-        for i in range(binary_kmer.shape[0] - self.sub_k + 1):
-            for j in range(self.n_hashes):
-                hash_vals[i, j] = fnva(binary_kmer[i:i + self.sub_k], self.hash_functions[j, :])
-                hash_vals[i, j] = hash_vals[i, j] % self.array_size
-        i = 0
         cdef npc.uint8_t[:, :] searched
         cdef Cluster cluster
         cdef npc.uint8_t[:] filtered_centers = np.zeros((len(centers,)), dtype=np.uint8)
@@ -138,35 +134,51 @@ cdef class GridCoverSearcher:
         # Coarse Search
         if self.logging:
             self.logger(f'Starting search.')
-        cdef npc.uint8_t[:, :] out = np.ndarray((0, self.ramifier.k), dtype=np.uint8)
         cdef list centers = self._coarse_search(binary_kmer, search_radius, eps=eps)
         if self.logging:
             self.logger(f'Coarse search complete. {len(centers)} clusters.')
+
+        cdef int i = 0
+        cdef npc.uint64_t[:, :] hash_vals = np.ndarray(
+            (binary_kmer.shape[0] - self.sub_k + 1, self.n_hashes), dtype=np.uint64
+        )
+        for i in range(binary_kmer.shape[0] - self.sub_k + 1):
+            for j in range(self.n_hashes):
+                hash_vals[i, j] = fnva(binary_kmer[i:i + self.sub_k], self.hash_functions[j, :])
+                hash_vals[i, j] = hash_vals[i, j] % self.array_size
         cdef npc.uint8_t[:] filtered_centers = self._filter_search(
             binary_kmer,
             centers,
+            hash_vals,
             inner_radius=inner_radius,
             eps=eps,
             inner_metric=inner_metric,
         )
 
         # Fine search
-        cdef int i = -1
+        cdef npc.uint8_t[:, :] out = np.ndarray((0, self.ramifier.k), dtype=np.uint8)
+        i = -1
+        cdef npc.uint8_t[:] row_hits
+        cdef int max_misses = <int> ceil(inner_radius * binary_kmer.shape[0])
         for center in centers:
             i += 1
             if filtered_centers[i] == 1:
-                searched = self._fine_search(
-                    binary_kmer,
-                    self.db.get_cluster(
-                        center,
-                        self.array_size,
-                        self.hash_functions,
-                        self.sub_k
-                    ),
-                    inner_radius=inner_radius,
-                    inner_metric=inner_metric
+                cluster = self.db.get_cluster(
+                    center,
+                    self.array_size,
+                    self.hash_functions,
+                    self.sub_k
                 )
-                out = np.append(out, searched, axis=0)
+                row_hits = cluster.test_row_membership(hash_vals, max_misses)
+                if inner_metric == 'none' or max(row_hits) > 0:
+                    searched = self._fine_search(
+                        binary_kmer,
+                        cluster,
+                        row_hits,
+                        inner_radius=inner_radius,
+                        inner_metric=inner_metric
+                    )
+                    out = np.append(out, searched, axis=0)
         if self.logging:
             self.logger(f'Fine search complete. {out.shape[0]} candidates passed.')
         return out

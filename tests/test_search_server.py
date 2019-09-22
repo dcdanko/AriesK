@@ -15,7 +15,6 @@ KMER_TABLE = join(dirname(__file__), 'small_31mer_table.csv')
 PORT = 5432
 KMER_31 = 'AATACGTCCGGAGTATCGACGCACACATGGT'
 
-
 def run_server():
     SearchServer.from_filepath(PORT, GRID_COVER, auto_start=True)
 

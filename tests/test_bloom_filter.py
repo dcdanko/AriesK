@@ -88,8 +88,6 @@ class TestUtils(TestCase):
 
     def test_union(self):
         bf1 = BloomFilter.build_from_probs(40, 500, 0.01)
-        print(bf1.len_filter)
-        print(bf1.n_hashes)
         bf2 = BloomFilter.build_from_probs(40, 500, 0.01)
         for _ in range(100):
             kmer = random_kmer(40)
@@ -99,7 +97,6 @@ class TestUtils(TestCase):
             bf1.py_add(random_kmer(40))
             bf2.py_add(random_kmer(40))
         union = bf1.union(bf2)
-        print(union)
         self.assertGreaterEqual(union, 290)
         self.assertLessEqual(union, 410)
 

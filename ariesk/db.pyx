@@ -88,7 +88,7 @@ cdef class GridCoverDB:
             return self.cluster_cache[centroid_id]
         cdef npc.uint8_t[:, :] seqs = self.get_cluster_members(centroid_id)
         cdef Cluster cluster = Cluster(centroid_id, seqs, sub_k)
-        cluster.build_bloom_filter(filter_len, hashes)
+        cluster.build_bloom_grid(filter_len, hashes)
         self.cluster_cache[centroid_id] = cluster
         return cluster
 

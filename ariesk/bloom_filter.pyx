@@ -135,6 +135,7 @@ cdef class BloomGrid:
         return self.array_contains_hvals(hash_vals)
 
     cdef bint array_contains_hvals(self, npc.uint64_t[:] hvals):
+        assert hvals.shape[0] == self.col_hashes.shape[0]
         cdef int hashes_hit = 0
         cdef int i
         for i in range(hvals.shape[0]):
