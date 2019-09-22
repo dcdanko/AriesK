@@ -49,7 +49,7 @@ cdef class GridCoverSearcher:
 
     cdef _pre_compute_hashes(self):
         cdef int i, j
-        hash_functions = np.ndarray((self.n_hashes, self.sub_k), dtype=np.uint64)
+        self.hash_functions = np.ndarray((self.n_hashes, self.sub_k), dtype=np.uint64)
         for i in range(self.n_hashes):
             for j, val in enumerate(np.random.permutation(self.sub_k)):
                 self.hash_functions[i, j] = val
