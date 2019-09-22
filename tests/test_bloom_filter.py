@@ -107,10 +107,9 @@ class TestUtils(TestCase):
         sub_k, k = 6, 31
         seqs = [random_kmer(k) for _ in range(100)]
         clust = Cluster.build_from_seqs(0, seqs, sub_k)
-        clust.bloom_filter = BloomFilter.build_from_probs(sub_k, 500, 0.01)
+        clust.bloom_grid = BloomGrid.build_from_probs(k, sub_k, 4, 1, 500, 0.01)
         for i in range(len(seqs)):
-            for j in range(k - sub_k + 1):
-                clust.bloom_filter.py_add(seqs[i][j:j + sub_k])
+            clust.bloom_grid.py_add(seqs[i])
         self.assertEqual(clust.py_count_membership(seqs[0]), 26)
         self.assertLess(clust.py_count_membership(random_kmer(k)), 26)
         self.assertTrue(clust.py_test_membership(seqs[0], 0))

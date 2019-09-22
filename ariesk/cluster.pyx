@@ -14,14 +14,22 @@ cdef class Cluster:
     def __cinit__(self, centroid_id, seqs, sub_k):
         self.centroid_id = centroid_id
         self.seqs = seqs
+        self.k = seqs.shape[0]
         self.sub_k = sub_k
 
-    cpdef build_bloom_filter(self, int filter_len, npc.uint64_t[:, :] hashes):
-        self.bloom_filter = BloomFilter(self.sub_k, filter_len, hashes)
+    cpdef build_bloom_grid(self, int filter_len, npc.uint64_t[:, :] col_hashes):
+        cdef int n_row_hashes = 1
+        cdef int grid_height = 4
+        cdef npc.uint64_t[:, :] row_hashes = npc.ndarray((n_row_hashes, self.k), dtype=np.uint64)
         cdef int i, j
+        for i in range(n_row_hashes):
+            for j, val in enumerate(np.random.permutation(self.k)):
+                row_hashes[i, j] = val
+        self.bloom_grid = BloomGrid(
+            self.sub_k, self.k, filter_len, grid_height, row_hashes, col_hashes
+        )
         for i in range(self.seqs.shape[0]):
-            for j in range(self.seqs.shape[1] - self.sub_k + 1):
-                self.bloom_filter.add(self.seqs[i, j:j + self.sub_k])
+            self.bloom_grid.add(self.seqs[i, :])
 
     def py_test_membership(self, str seq, int allowed_misses):
         return self.test_membership(encode_kmer(seq), allowed_misses)
@@ -33,7 +41,7 @@ cdef class Cluster:
         cdef int i
         cdef int n_hits = 0
         for i in range(self.seqs.shape[1] - self.sub_k + 1):
-            if self.bloom_filter.contains(query_seq[i:i + self.sub_k]):
+            if self.bloom_grid.array_contains(query_seq[i:i + self.sub_k]):
                 n_hits += 1
         return n_hits
 
@@ -46,7 +54,7 @@ cdef class Cluster:
         cdef int i
         cdef int n_hits = 0
         for i in range(hash_vals.shape[0]):
-            if self.bloom_filter.contains_hvals(hash_vals[i, :]):
+            if self.bloom_filter.array_contains_hvals(hash_vals[i, :]):
                 n_hits += 1
         return n_hits
 
