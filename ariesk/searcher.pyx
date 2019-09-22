@@ -89,35 +89,8 @@ cdef class GridCoverSearcher:
         out = out[0:added, :]
         return out
 
-    def py_search(self, str kmer, double search_radius,
+    cdef npc.uint8_t[:] _filter_search(self, npc.uint8_t[:] binary_kmer, list centers, 
         double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
-        cdef npc.uint8_t[:, :] hits = np.array(self.search(
-            encode_kmer(kmer),
-            search_radius,
-            inner_radius=inner_radius,
-            eps=eps,
-            inner_metric=inner_metric
-        ), dtype=np.uint8)
-        cdef list out = []
-        cdef int i
-
-        for i in range(hits.shape[0]):
-            out.append(decode_kmer(hits[i, :]))
-        return out
-
-    cdef npc.uint8_t[:, :] search(self, npc.uint8_t[:] binary_kmer, double search_radius,
-        double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
-
-        # Coarse Search
-        if self.logging:
-            self.logger(f'Starting search.')
-        cdef npc.uint8_t[:, :] out = np.ndarray((0, self.ramifier.k), dtype=np.uint8)
-        cdef float start_time_1, elapsed_time_1, start_time_2, elapsed_time_2, start_time_3, elapsed_time_3
-        cdef list centers = self._coarse_search(binary_kmer, search_radius, eps=eps)
-        if self.logging:
-            self.logger(f'Coarse search complete. {len(centers)} clusters.')
-
-        # Filtering
         cdef int i = 0
         cdef npc.uint64_t[:, :] hash_vals = np.ndarray((binary_kmer.shape[0] - self.sub_k + 1, self.n_hashes), dtype=np.uint64)
         for i in range(binary_kmer.shape[0] - self.sub_k + 1):
@@ -142,19 +115,58 @@ cdef class GridCoverSearcher:
         if self.logging:
             self.logger(f'Cluster filtering complete. {sum(filtered_centers)} clusters remaining.')
             self.logger(f'Allowing up to {max_misses}.')
- 
+        return filtered_centers
+
+    def py_search(self, str kmer, double search_radius,
+        double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
+        cdef npc.uint8_t[:, :] hits = np.array(self.search(
+            encode_kmer(kmer),
+            search_radius,
+            inner_radius=inner_radius,
+            eps=eps,
+            inner_metric=inner_metric
+        ), dtype=np.uint8)
+        cdef list out = []
+        cdef int i
+
+        for i in range(hits.shape[0]):
+            out.append(decode_kmer(hits[i, :]))
+        return out
+
+    cdef npc.uint8_t[:, :] search(self, npc.uint8_t[:] binary_kmer, double search_radius,
+        double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
+        # Coarse Search
+        if self.logging:
+            self.logger(f'Starting search.')
+        cdef npc.uint8_t[:, :] out = np.ndarray((0, self.ramifier.k), dtype=np.uint8)
+        cdef list centers = self._coarse_search(binary_kmer, search_radius, eps=eps)
+        if self.logging:
+            self.logger(f'Coarse search complete. {len(centers)} clusters.')
+        cdef npc.uint8_t[:] filtered_centers = self._filter_search(
+            binary_kmer,
+            centers,
+            inner_radius=inner_radius,
+            eps=eps,
+            inner_metric=inner_metric,
+        )
+
         # Fine search
-        i = -1
+        cdef int i = -1
         for center in centers:
             i += 1
             if filtered_centers[i] == 1:
-                cluster = self.db.get_cluster(center, self.array_size, self.hash_functions, self.sub_k)
                 searched = self._fine_search(
-                    binary_kmer, cluster,
-                    inner_radius=inner_radius, inner_metric=inner_metric
+                    binary_kmer,
+                    self.db.get_cluster(
+                        center,
+                        self.array_size,
+                        self.hash_functions,
+                        self.sub_k
+                    ),
+                    inner_radius=inner_radius,
+                    inner_metric=inner_metric
                 )
-                if searched.shape[0] > 0:
-                    out = np.append(out, searched, axis=0)
+                out = np.append(out, searched, axis=0)
         if self.logging:
             self.logger(f'Fine search complete. {out.shape[0]} candidates passed.')
         return out

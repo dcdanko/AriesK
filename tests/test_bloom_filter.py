@@ -3,7 +3,7 @@ import random
 import numpy as np
 from unittest import TestCase
 
-from ariesk.bloom_filter import BloomFilter
+from ariesk.bloom_filter import BloomFilter, BloomGrid
 from ariesk.cluster import Cluster
 
 KMER_31 = 'ATCGATCGATCGATCGATCGATCGATCGATCG'
@@ -14,6 +14,21 @@ def random_kmer(k):
 
 
 class TestUtils(TestCase):
+
+    def test_add_to_bloom_grid(self):
+        k, sub_k = 31, 6
+        bg = BloomGrid.build_from_probs(k, sub_k, 10, 2, 500, 0.01)
+        seqs = []
+        for _ in range(10):
+            seqs.append(random_kmer(k))
+            bg.py_add(seqs[-1])
+        for seq in seqs:
+            for i in range(k - sub_k + 1):
+                sub_seq = seq[i:i + sub_k]
+                self.assertTrue(bg.py_array_contains(sub_seq))
+                self.assertGreaterEqual(sum(bg.py_grid_contains(sub_seq)), 1)
+        for seq in seqs:
+            self.assertGreaterEqual(sum(bg.py_count_grid_contains(seq)), 1)
 
     def test_add_to_bloom(self):
         bf = BloomFilter.build_from_probs(5, 500, 0.01)
