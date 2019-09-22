@@ -77,3 +77,13 @@ cdef class BloomFilter:
 
     cpdef int intersection(self, BloomFilter other):
         return self.n_elements + other.n_elements - self.union(other)
+
+    @classmethod
+    def build_from_probs(cls, k, expected_size, desired_probability):
+        len_filter = expected_size * ceil(-1.44 * log2(desired_probability))
+        n_hashes = int(ceil(-log2(desired_probability)))
+        hashes = npc.ndarray((n_hashes, k), dtype=np.uint64)
+        for i in range(n_hashes):
+            for j, val in enumerate(np.random.permutation(k)):
+                hashes[i, j] = val
+        return cls(k, len_filter, hashes)

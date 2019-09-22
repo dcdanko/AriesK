@@ -16,19 +16,19 @@ def random_kmer(k):
 class TestUtils(TestCase):
 
     def test_add_to_bloom(self):
-        bf = BloomFilter(5, 500, 0.01)
+        bf = BloomFilter.build_from_probs(5, 500, 0.01)
         for _ in range(100):
             bf.py_add(random_kmer(5))
         self.assertEqual(bf.n_elements, 100)
 
     def test_in_bloom(self):
-        bf = BloomFilter(5, 500, 0.01)
+        bf = BloomFilter.build_from_probs(5, 500, 0.01)
         kmer = random_kmer(5)
         bf.py_add(kmer)
         self.assertTrue(bf.py_contains(kmer))
 
     def test_not_in_bloom(self):
-        bf = BloomFilter(5, 500, 0.01)
+        bf = BloomFilter.build_from_probs(5, 500, 0.01)
         kmer = random_kmer(5)
         bf.py_add(kmer)
         self.assertTrue(bf.py_contains(kmer))
@@ -36,7 +36,7 @@ class TestUtils(TestCase):
             self.assertFalse(bf.py_contains(random_kmer(5)))
 
     def test_mostly_not_in_bloom_large(self):
-        bf = BloomFilter(31, 200, 0.01)
+        bf = BloomFilter.build_from_probs(31, 200, 0.01)
         for _ in range(100):
             bf.py_add(random_kmer(31))
 
@@ -48,7 +48,7 @@ class TestUtils(TestCase):
 
     def test_mostly_not_in_bloom_small(self):
         k = 6
-        bf = BloomFilter(k, 200, 0.01)
+        bf = BloomFilter.build_from_probs(k, 200, 0.01)
         for _ in range(100):
             bf.py_add(random_kmer(k))
         in_bloom = 0
@@ -58,8 +58,8 @@ class TestUtils(TestCase):
         self.assertLessEqual(in_bloom, 5)
 
     def test_intersection(self):
-        bf1 = BloomFilter(40, 500, 0.00001)
-        bf2 = BloomFilter(40, 500, 0.00001)
+        bf1 = BloomFilter.build_from_probs(40, 500, 0.00001)
+        bf2 = BloomFilter.build_from_probs(40, 500, 0.00001)
         for _ in range(100):
             kmer = random_kmer(40)
             bf1.py_add(kmer)
@@ -72,10 +72,10 @@ class TestUtils(TestCase):
         self.assertLessEqual(intersection, 110)
 
     def test_union(self):
-        bf1 = BloomFilter(40, 500, 0.01)
+        bf1 = BloomFilter.build_from_probs(40, 500, 0.01)
         print(bf1.len_filter)
         print(bf1.n_hashes)
-        bf2 = BloomFilter(40, 500, 0.01)
+        bf2 = BloomFilter.build_from_probs(40, 500, 0.01)
         for _ in range(100):
             kmer = random_kmer(40)
             bf1.py_add(kmer)
@@ -89,10 +89,14 @@ class TestUtils(TestCase):
         self.assertLessEqual(union, 410)
 
     def test_cluster_membership(self):
-        seqs = [random_kmer(31) for _ in range(100)]
-        clust = Cluster.build_from_seqs(0, seqs)
-        clust.build_bloom_filter()
+        sub_k, k = 6, 31
+        seqs = [random_kmer(k) for _ in range(100)]
+        clust = Cluster.build_from_seqs(0, seqs, sub_k)
+        clust.bloom_filter = BloomFilter.build_from_probs(sub_k, 500, 0.01)
+        for i in range(len(seqs)):
+            for j in range(k - sub_k + 1):
+                clust.bloom_filter.py_add(seqs[i][j:j + sub_k])
         self.assertEqual(clust.py_count_membership(seqs[0]), 26)
-        self.assertLess(clust.py_count_membership(random_kmer(31)), 26)
+        self.assertLess(clust.py_count_membership(random_kmer(k)), 26)
         self.assertTrue(clust.py_test_membership(seqs[0], 0))
-        self.assertFalse(clust.py_test_membership(random_kmer(31), 0))
+        self.assertFalse(clust.py_test_membership(random_kmer(k), 0))

@@ -56,8 +56,8 @@ cdef class Cluster:
         return n_hits >= min_hits
 
     @classmethod
-    def build_from_seqs(cls, centroid_id, seqs, **kwargs):
+    def build_from_seqs(cls, centroid_id, seqs, sub_k, **kwargs):
         """Build from a list of python strings. Mostly for testing."""
         np_seqs = np.array([encode_kmer(seq) for seq in seqs])
-        out = cls(centroid_id, np_seqs, **kwargs)
+        out = cls(centroid_id, np_seqs, sub_k, **kwargs)
         return out
