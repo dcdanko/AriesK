@@ -14,5 +14,6 @@ cdef class BloomFilter:
 
     cdef add(self, npc.uint8_t[:] seq)
     cdef bint contains(self, npc.uint8_t[:] seq)
+    cdef bint contains_hvals(self, npc.uint64_t[:] hvals)
     cpdef int union(self, BloomFilter other)
     cpdef int intersection(self, BloomFilter other)

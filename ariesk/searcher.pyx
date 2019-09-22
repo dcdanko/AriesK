@@ -8,6 +8,7 @@ from libc.math cimport ceil
 from .ram cimport RotatingRamifier
 from .db cimport GridCoverDB
 from .cluster cimport Cluster
+from .bloom_filter cimport fnva
 from .utils cimport (
     encode_kmer,
     decode_kmer,
@@ -91,6 +92,8 @@ cdef class GridCoverSearcher:
 
     cdef npc.uint8_t[:, :] search(self, npc.uint8_t[:] binary_kmer, double search_radius,
         double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
+
+        # Coarse Search
         if self.logging:
             self.logger(f'Starting search.')
         cdef npc.uint8_t[:, :] out = np.ndarray((0, self.ramifier.k), dtype=np.uint8)
@@ -99,30 +102,48 @@ cdef class GridCoverSearcher:
         if self.logging:
             self.logger(f'Coarse search complete. {len(centers)} clusters.')
 
-        cdef int i = 0
+        # Filtering
+        # pre-compute hashes
+        cdef int i, j
+        cdef int sub_k = 6
+        cdef int n_hashes = 8
+        cdef int array_size = 1000
+        cdef npc.uint64_t[:, :] hash_functions = np.ndarray((n_hashes, sub_k), dtype=np.uint64)
+        cdef npc.uint64_t[:, :] hash_vals = np.ndarray((binary_kmer.shape[0] - sub_k + 1, n_hashes), dtype=np.uint64)
+        for i in range(n_hashes):
+            for j, val in enumerate(np.random.permutation(sub_k)):
+                hash_functions[i, j] = val
+        for i in range(binary_kmer.shape[0] - sub_k + 1):
+            for j in range(n_hashes):
+                hash_vals[i, j] = fnva(binary_kmer[i:i + sub_k], hash_functions[j, :])
+                hash_vals[i, j] = hash_vals[i, j] % array_size
+
+        # Test against clusters
+        i = 0
         cdef npc.uint8_t[:, :] searched
         cdef Cluster cluster
         cdef npc.uint8_t[:] filtered_centers = np.zeros((len(centers,)), dtype=np.uint8)
         cdef int max_misses = <int> ceil(inner_radius * binary_kmer.shape[0])
         cdef int n_points_original = 0
         for center in centers:
-            cluster = self.db.get_cluster(center)
+            cluster = self.db.get_cluster(center, array_size, hash_functions, sub_k)
             if self.logging:
                 n_points_original += cluster.seqs.shape[0]
             if inner_metric == 'none':
                 filtered_centers[i] = 1
-            elif cluster.test_membership(binary_kmer, max_misses):
+            elif cluster.seqs.shape[0] <= 1 or cluster.test_membership_hvals(hash_vals, max_misses):
                 filtered_centers[i] = 1
             i += 1
         if self.logging:
             self.logger(f'Cluster filtering complete. {sum(filtered_centers)} clusters remaining.')
             self.logger(f'Allowing up to {max_misses}.')
  
+        # Fine search
         i = -1
         for center in centers:
             i += 1
             if filtered_centers[i] == 1:
-                cluster = self.db.get_cluster(center)
+                cluster = self.db.get_cluster(center, array_size, hash_functions, sub_k)
                 searched = self._fine_search(
                     binary_kmer, cluster,
                     inner_radius=inner_radius, inner_metric=inner_metric

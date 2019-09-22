@@ -11,14 +11,13 @@ from .utils cimport (
 
 cdef class Cluster:
 
-    def __cinit__(self, centroid_id, seqs, sub_k=6):
+    def __cinit__(self, centroid_id, seqs, sub_k):
         self.centroid_id = centroid_id
         self.seqs = seqs
         self.sub_k = sub_k
 
-    cpdef build_bloom_filter(self):
-        cdef int n_subk = self.seqs.shape[0] * (self.seqs.shape[1] - self.sub_k + 1)
-        self.bloom_filter = BloomFilter(self.sub_k, max(100, n_subk), 0.01)
+    cpdef build_bloom_filter(self, int filter_len, npc.uint64_t[:, :] hashes):
+        self.bloom_filter = BloomFilter(self.sub_k, filter_len, hashes)
         cdef int i, j
         for i in range(self.seqs.shape[0]):
             for j in range(self.seqs.shape[1] - self.sub_k + 1):
@@ -40,6 +39,19 @@ cdef class Cluster:
 
     cdef bint test_membership(self, npc.uint8_t[:] query_seq, int allowed_misses):
         cdef int n_hits = self.count_membership(query_seq)
+        cdef int min_hits = self.seqs.shape[1] - self.sub_k + 1 - (self.sub_k * allowed_misses)
+        return n_hits >= min_hits
+
+    cdef int count_membership_hvals(self, npc.uint64_t[:, :] hash_vals):
+        cdef int i
+        cdef int n_hits = 0
+        for i in range(hash_vals.shape[0]):
+            if self.bloom_filter.contains_hvals(hash_vals[i, :]):
+                n_hits += 1
+        return n_hits
+
+    cdef bint test_membership_hvals(self, npc.uint64_t[:, :] hash_vals, int allowed_misses):
+        cdef int n_hits = self.count_membership_hvals(hash_vals)
         cdef int min_hits = self.seqs.shape[1] - self.sub_k + 1 - (self.sub_k * allowed_misses)
         return n_hits >= min_hits
 

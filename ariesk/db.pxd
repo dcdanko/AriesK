@@ -20,7 +20,7 @@ cdef class GridCoverDB:
     cpdef get_kmers(self)
     cdef npc.uint8_t[:, :] get_encoded_kmers(self)
     cdef npc.uint8_t[:, :] get_cluster_members(self, int centroid_id)
-    cdef Cluster get_cluster(self, int centroid_id)
+    cdef Cluster get_cluster(self, int centroid_id, int filter_len, npc.uint64_t[:, :] hashes, sub_k)
     cdef add_point_to_cluster(self, double [:] centroid, npc.uint8_t [:] kmer)
     cpdef load_other(self, GridCoverDB other)
     cdef double [:, :] c_get_centroids(self)

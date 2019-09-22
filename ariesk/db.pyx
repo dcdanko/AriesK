@@ -83,12 +83,12 @@ cdef class GridCoverDB:
                 binary_kmers[i, j] = binary_kmer[j]
         return binary_kmers
 
-    cdef Cluster get_cluster(self, int centroid_id):
+    cdef Cluster get_cluster(self, int centroid_id, int filter_len, npc.uint64_t[:, :] hashes, sub_k):
         if centroid_id in self.cluster_cache:
             return self.cluster_cache[centroid_id]
         cdef npc.uint8_t[:, :] seqs = self.get_cluster_members(centroid_id)
-        cdef Cluster cluster = Cluster(centroid_id, seqs)
-        cluster.build_bloom_filter()
+        cdef Cluster cluster = Cluster(centroid_id, seqs, sub_k)
+        cluster.build_bloom_filter(filter_len, hashes)
         self.cluster_cache[centroid_id] = cluster
         return cluster
 
