@@ -24,6 +24,10 @@ cdef class GridCoverSearcher:
     cdef public RotatingRamifier ramifier
     cdef public bint logging
     cdef public object logger
+    cdef int sub_k
+    cdef int n_hashes
+    cdef int array_size
+    cdef npc.uint64_t[:, :] hash_functions
 
     cdef public object tree
 
@@ -38,6 +42,17 @@ cdef class GridCoverSearcher:
                 self.centroid_rfts[i, j] += (self.db.box_side_len / 2)
         self.tree = cKDTree(self.centroid_rfts)
         self.logging = False
+        self.sub_k = 6
+        self.n_hashes = 8
+        self.array_size = 1000
+        self._pre_compute_hashes()
+
+    cdef _pre_compute_hashes(self):
+        cdef int i, j
+        hash_functions = np.ndarray((self.n_hashes, self.sub_k), dtype=np.uint64)
+        for i in range(self.n_hashes):
+            for j, val in enumerate(np.random.permutation(self.sub_k)):
+                self.hash_functions[i, j] = val
 
     def add_logger(self, logger):
         self.logging = True
@@ -103,35 +118,24 @@ cdef class GridCoverSearcher:
             self.logger(f'Coarse search complete. {len(centers)} clusters.')
 
         # Filtering
-        # pre-compute hashes
-        cdef int i, j
-        cdef int sub_k = 6
-        cdef int n_hashes = 8
-        cdef int array_size = 1000
-        cdef npc.uint64_t[:, :] hash_functions = np.ndarray((n_hashes, sub_k), dtype=np.uint64)
         cdef npc.uint64_t[:, :] hash_vals = np.ndarray((binary_kmer.shape[0] - sub_k + 1, n_hashes), dtype=np.uint64)
-        for i in range(n_hashes):
-            for j, val in enumerate(np.random.permutation(sub_k)):
-                hash_functions[i, j] = val
-        for i in range(binary_kmer.shape[0] - sub_k + 1):
+        for i in range(binary_kmer.shape[0] - self.sub_k + 1):
             for j in range(n_hashes):
-                hash_vals[i, j] = fnva(binary_kmer[i:i + sub_k], hash_functions[j, :])
-                hash_vals[i, j] = hash_vals[i, j] % array_size
-
-        # Test against clusters
-        i = 0
+                hash_vals[i, j] = fnva(binary_kmer[i:i + self.sub_k], self.hash_functions[j, :])
+                hash_vals[i, j] = hash_vals[i, j] % self.array_size
+        cdef int i = 0
         cdef npc.uint8_t[:, :] searched
         cdef Cluster cluster
         cdef npc.uint8_t[:] filtered_centers = np.zeros((len(centers,)), dtype=np.uint8)
         cdef int max_misses = <int> ceil(inner_radius * binary_kmer.shape[0])
         cdef int n_points_original = 0
         for center in centers:
-            cluster = self.db.get_cluster(center, array_size, hash_functions, sub_k)
+            cluster = self.db.get_cluster(center, self.array_size, self.hash_functions, self.sub_k)
             if self.logging:
                 n_points_original += cluster.seqs.shape[0]
             if inner_metric == 'none':
                 filtered_centers[i] = 1
-            elif cluster.seqs.shape[0] <= 1 or cluster.test_membership_hvals(hash_vals, max_misses):
+            elif cluster.seqs.shape[0] <= 0 or cluster.test_membership_hvals(hash_vals, max_misses):
                 filtered_centers[i] = 1
             i += 1
         if self.logging:
@@ -143,7 +147,7 @@ cdef class GridCoverSearcher:
         for center in centers:
             i += 1
             if filtered_centers[i] == 1:
-                cluster = self.db.get_cluster(center, array_size, hash_functions, sub_k)
+                cluster = self.db.get_cluster(center, self.array_size, self.hash_functions, self.sub_k)
                 searched = self._fine_search(
                     binary_kmer, cluster,
                     inner_radius=inner_radius, inner_metric=inner_metric
