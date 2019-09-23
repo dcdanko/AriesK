@@ -83,7 +83,7 @@ cdef class GridCoverSearcher:
                 inner = needle_fast(query_kmer, cluster.seqs[i, :], True, score)
             elif inner_metric == 'hamming':
                 inner = hamming_dist(query_kmer, cluster.seqs[i, :], True)
-            if inner_metric == 'none' or inner < inner_radius:
+            if inner_metric == 'none' or inner <= inner_radius:
                 for j in range(self.ramifier.k):
                     out[added, j] = cluster.seqs[i, j]
                 added += 1
