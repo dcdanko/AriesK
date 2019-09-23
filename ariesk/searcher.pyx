@@ -78,6 +78,7 @@ cdef class GridCoverSearcher:
         cdef double[:, :] score = np.zeros((self.ramifier.k + 1, self.ramifier.k + 1))
         cdef int i, j
         cdef int added = 0
+        cdef double inner = 100 * self.ramifier.k  # big value that will be larger than inner rad
         for i in range(cluster.seqs.shape[0]):
             if inner_metric == 'needle' and cluster.test_seq(i, row_hits):
                 inner = needle_fast(query_kmer, cluster.seqs[i, :], True, score)

@@ -38,6 +38,27 @@ cdef double hamming_dist(npc.uint8_t [:] k1, npc.uint8_t [:] k2, bint normalize)
     return score
 
 
+def py_needle(kmers, normalize=False):
+    out = []
+    for i, k1 in enumerate(kmers):
+        for j, k2 in enumerate(kmers):
+            if i < j:
+                out.append((k1, k2, needle_dist(encode_kmer(k1), encode_kmer(k2), normalize)))
+    return out
+
+
+def py_needle_fast(kmers, normalize=False):
+    out = []
+    cdef double[:, :] score = np.zeros((len(kmers[0]) + 1, len(kmers[0]) + 1))
+    for i, k1 in enumerate(kmers):
+        for j, k2 in enumerate(kmers):
+            if i < j:
+                out.append((k1, k2, needle_fast(
+                    encode_kmer(k1), encode_kmer(k2), normalize, score
+                )))
+    return out
+
+
 cdef double needle_dist(npc.uint8_t[:] k1, npc.uint8_t[:] k2, bint normalize):
     """Return the NW alignment distance."""
     cdef double[:, :] score = np.zeros((k1.shape[0] + 1, k2.shape[0] + 1))

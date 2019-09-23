@@ -51,6 +51,8 @@ class SearchClient:
         msg.update(kwargs)
         self.socket.send_string(dumps(msg))
         results = self.socket.recv_string().split('\n')
+        if len(results) == 0:
+            return 'NONE'
         return results
 
     def handshake(self):

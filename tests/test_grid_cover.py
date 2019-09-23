@@ -73,14 +73,14 @@ class TestGridCover(TestCase):
         query = KMER_31
         results = grid.py_search(query, 0.0001, inner_metric='needle', inner_radius=0.01)
         self.assertIn(query, results)
-        self.assertGreaterEqual(len(results), 1)
+        self.assertEqual(len(results), 1)
 
     def test_one_search_grid_cover_exact(self):
         grid = GridCoverSearcher.from_filepath(GRID_COVER)
         query = KMER_31
         results = grid.py_search(query, 0, inner_metric='needle', inner_radius=0)
         self.assertIn(query, results)
-        self.assertGreaterEqual(len(results), 1)
+        self.assertEqual(len(results), 1)
 
     def test_double_search_grid_cover_tight(self):
         grid = GridCoverSearcher.from_filepath(GRID_COVER)
@@ -88,7 +88,7 @@ class TestGridCover(TestCase):
         grid.py_search(query, 0.0001)
         results = grid.py_search(query, 0.0001, inner_metric='needle', inner_radius=0.01)
         self.assertIn(query, results)
-        self.assertGreaterEqual(len(results), 1)
+        self.assertEqual(len(results), 1)
 
     def test_all_search_grid_cover_broad(self):
         grid = GridCoverSearcher.from_filepath(GRID_COVER)

@@ -6,13 +6,21 @@ from os.path import join, dirname
 from unittest import TestCase
 from ariesk.dists import DistanceFactory
 
-from ariesk.utils import py_encode_kmer, py_decode_kmer
+from ariesk.utils import (
+    py_encode_kmer,
+    py_decode_kmer,
+    py_needle,
+    py_needle_fast,
+)
 from ariesk.linear_searcher import LinearSearcher
 
 KMER_TABLE = join(dirname(__file__), 'small_31mer_table.csv')
 KMER_ROTATION = join(dirname(__file__), '../data/rotation_minikraken.json')
 GRID_COVER = join(dirname(__file__), 'small_grid_cover.sqlite')
-KMER_31 = 'ATCGATCGATCGATCGATCGATCGATCGATCG'
+
+KMER_31 = 'ATCGATCGATCGATCGATCGATCGATCGATC'
+MIS     = 'TTCGATCGATCGATCGATCGATCGATCGATC'
+GAP     = 'TATCGATCGATCGATCGATCGATCGATCGAT'
 
 
 def random_kmer(k):
@@ -48,6 +56,24 @@ class TestUtils(TestCase):
             'TTCGATCGATCGATCGATCGATCGATCGATCG'
         )
         self.assertEqual(all_dists['hamming'], 1)
+
+    def test_needle(self):
+        kmers = [KMER_31, MIS, GAP]
+        needle = py_needle(kmers, normalize=False)
+        for k1, k2, dist in needle:
+            ex_dist = 1
+            if k1 == GAP or k2 == GAP:
+                ex_dist = 2
+            self.assertEqual(dist, ex_dist)
+
+    def test_needle_fast(self):
+        kmers = [KMER_31, MIS, GAP]
+        needle = py_needle_fast(kmers, normalize=False)
+        for k1, k2, dist in needle:
+            ex_dist = 1
+            if k1 == GAP or k2 == GAP:
+                ex_dist = 2
+            self.assertEqual(dist, ex_dist)
 
     def test_linear_search(self):
         searcher = LinearSearcher.from_filepath(GRID_COVER)
