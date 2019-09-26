@@ -43,7 +43,9 @@ setuptools.setup(
     author_email='dcdanko@gmail.com',
     url='https://github.com/dcdanko/ariesk',
     packages=setuptools.find_packages(),
-    package_dir={'ariesk': 'ariesk'},
+    package_dir={
+        'ariesk': 'ariesk',
+    },
     install_requires=[
         'click',
         'pandas',
@@ -53,7 +55,8 @@ setuptools.setup(
     ],
     entry_points={
         'console_scripts': [
-            'ariesk=ariesk.cli:main'
+            'ariesk=ariesk.cli:main',
+            'inquest-ariesk=ariesk.inquest.cli:main',
         ]
     },
     classifiers=[
