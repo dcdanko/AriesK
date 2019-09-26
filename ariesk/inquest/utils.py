@@ -51,4 +51,6 @@ def sample_fasta(seqs, k, n):
                     kmers.add(str(kmer))
                 if len(kmers) >= n:
                     break
+            if len(kmers) >= n:
+                break
     return list(kmers)
