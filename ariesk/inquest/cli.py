@@ -22,7 +22,7 @@ def main():
 @click.argument('fasta', type=click.File('r'))
 def cli_dist_table(num_queries, num_targets, fasta):
     seqs = [rec.seq for rec in SeqIO.parse(fasta, 'fasta')]
-    for k in [32]: #, 64, 128, 256, 512, 1024]:
+    for k in [32, 64, 128, 256, 512, 1024]:
         click.echo(f'Building distance table for k={k}...', err=True)
         kmers = sample_fasta(seqs, k, num_targets)
         click.echo(f'\tSampled k-mers...', err=True)
