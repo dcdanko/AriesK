@@ -47,7 +47,7 @@ def sample_fasta(seqs, k, n):
     while len(kmers) < n:
         for seq in seqs:
             for kmer in make_kmers(seq, k):
-                if random() < 0.001:
+                if random() < 0.0001:
                     kmers.add(str(kmer))
                 if len(kmers) >= n:
                     break
