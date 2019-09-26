@@ -13,6 +13,7 @@ from .utils cimport (
     encode_kmer,
     decode_kmer,
     needle_fast,
+    bounded_needle_fast,
     hamming_dist,
 )
 
@@ -75,13 +76,14 @@ cdef class GridCoverSearcher:
             (cluster.seqs.shape[0], self.ramifier.k),
             dtype=np.uint8
         )
-        cdef double[:, :] score = np.zeros((self.ramifier.k + 1, self.ramifier.k + 1))
+        cdef double[:, :] score = 1000 * np.ones((self.ramifier.k + 1, self.ramifier.k + 1))
         cdef int i, j
         cdef int added = 0
+        cdef npc.uint8_t bound = <npc.uint8_t> ceil(inner_radius * query_kmer.shape[0])
         cdef double inner = 100 * self.ramifier.k  # big value that will be larger than inner rad
         for i in range(cluster.seqs.shape[0]):
             if inner_metric == 'needle' and cluster.test_seq(i, row_hits):
-                inner = needle_fast(query_kmer, cluster.seqs[i, :], True, score)
+                inner = bounded_needle_fast(query_kmer, cluster.seqs[i, :], bound, True, score)
             elif inner_metric == 'hamming':
                 inner = hamming_dist(query_kmer, cluster.seqs[i, :], True)
             if inner_metric == 'none' or inner <= inner_radius:

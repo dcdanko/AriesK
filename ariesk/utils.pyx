@@ -76,15 +76,45 @@ cdef double needle_fast(npc.uint8_t[:] k1, npc.uint8_t[:] k2, bint normalize, do
     for j in range(k2.shape[0] + 1):
         score[0][j] = gap_penalty * j
 
-    def _match_score(b1, b2):
-        return match_score if b1 == b2 else mismatch_penalty
-
     for i in range(1, k1.shape[0] + 1):
         for j in range(1, k2.shape[0] + 1):
-            match = score[i - 1][j - 1] + _match_score(k1[i - 1], k2[j - 1])
+            if k1[i - 1] == k2[j - 1]:
+                match = score[i - 1][j - 1]
+            else:
+                match = score[i - 1][j - 1] + mismatch_penalty
             delete = score[i - 1][j] + gap_penalty
             insert = score[i][j - 1] + gap_penalty
             score[i][j] = min(match, delete, insert)
+    final_score = score[k1.shape[0]][k2.shape[0]]
+    if normalize:
+        final_score /= k1.shape[0]
+    return final_score
+
+
+cdef double bounded_needle_fast(npc.uint8_t[:] k1, npc.uint8_t[:] k2, npc.uint8_t bound, bint normalize, double[:, :] score):
+    """Return NW alignment using pre-allocated RAM."""
+    cdef double match_score = 0
+    cdef double mismatch_penalty = 1
+    cdef double gap_penalty = 1
+    cdef int i, j, o
+    for i in range(k1.shape[0] + 1):
+        for o in range(bound + 1):
+            j = i + o
+            if j < (k1.shape[0] + 1):
+                score[i][j] = gap_penalty * o
+                score[j][i] = gap_penalty * o
+
+    for i in range(1, k1.shape[0] + 1):
+        for o in range(-bound, bound + 1):
+            j = i + o
+            if j < (k1.shape[0] + 1):
+                if k1[i - 1] == k2[j - 1]:
+                    match = score[i - 1][j - 1]
+                else:
+                    match = score[i - 1][j - 1] + mismatch_penalty
+                delete = score[i - 1][j] + gap_penalty
+                insert = score[i][j - 1] + gap_penalty
+                score[i][j] = min(match, delete, insert)
     final_score = score[k1.shape[0]][k2.shape[0]]
     if normalize:
         final_score /= k1.shape[0]
