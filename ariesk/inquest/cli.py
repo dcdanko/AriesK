@@ -29,8 +29,8 @@ def cli_dist_table(num_queries, num_targets, fasta):
         raw_queries, queries = sample(kmers, num_queries), []
         for query in raw_queries:
             queries.append(query)
-            for sub_rate, indel_rate in [(0.01, 0.005), (0.05, 0.01), (0.1, 0.05)]:
-                for _ in range(3):
+            for sub_rate, indel_rate in [(0.01, 0.005), (0.05, 0.01), (0.1, 0.05), (0.2, 0.1)]:
+                for _ in range(5):
                     queries.append(mutate_seq(query, sub_rate, indel_rate))
         click.echo(f'\tBuilt queries...', err=True)
         builder = DistanceBuilder(
