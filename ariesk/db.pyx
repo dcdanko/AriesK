@@ -30,7 +30,7 @@ cdef class GridCoverDB:
 
         self.centroid_insert_buffer = []
         self.kmer_insert_buffer = []
-        self.in_buffer = 0
+
         self.centroid_cache = {}  # note this is quite small and critical to build performance
         self.cluster_cache = {}
         if ramifier is None:
