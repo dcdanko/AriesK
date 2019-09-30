@@ -10,7 +10,6 @@ cdef simple_list(sql_cursor)
 cdef class GridCoverDB:
     cdef public float box_side_len
     cdef public object conn
-    cdef public object cursor
     cdef public object centroid_cache
     cdef public RotatingRamifier ramifier
     # A too simple dict based cache

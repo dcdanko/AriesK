@@ -22,23 +22,22 @@ cdef class GridCoverDB:
 
     def __cinit__(self, conn, ramifier=None, box_side_len=None, multithreaded=False):
         self.conn = conn
-        self.cursor = self.conn.cursor()
-        self.cursor.execute('CREATE TABLE IF NOT EXISTS basics (name text, value text)')
-        self.cursor.execute('CREATE TABLE IF NOT EXISTS kmers (centroid_id int, seq BLOB)')
-        self.cursor.execute('CREATE INDEX IF NOT EXISTS IX_kmers_centroid ON kmers(centroid_id)')
-        self.cursor.execute('CREATE TABLE IF NOT EXISTS centroids (centroid_id int, vals BLOB)')
+        self.conn.execute('CREATE TABLE IF NOT EXISTS basics (name text, value text)')
+        self.conn.execute('CREATE TABLE IF NOT EXISTS kmers (centroid_id int, seq BLOB)')
+        self.conn.execute('CREATE INDEX IF NOT EXISTS IX_kmers_centroid ON kmers(centroid_id)')
+        self.conn.execute('CREATE TABLE IF NOT EXISTS centroids (centroid_id int, vals BLOB)')
 
         self.centroid_cache = {}  # note this is quite small and critical to build performance
         self.cluster_cache = {}
         if ramifier is None:
             self.ramifier = self.load_ramifier()
-            self.box_side_len = float(self.cursor.execute(
+            self.box_side_len = float(self.conn.execute(
                     'SELECT value FROM basics WHERE name=?', ('box_side_len',)
             ).fetchone()[0])
         else:
             assert box_side_len is not None
             self.box_side_len = box_side_len
-            self.cursor.execute(
+            self.conn.execute(
                 'INSERT INTO basics VALUES (?,?)',
                 ('box_side_len', box_side_len)
             )
@@ -48,7 +47,7 @@ cdef class GridCoverDB:
     cpdef get_kmers(self):
         cdef list out = []
         cdef const npc.uint8_t [:] binary_kmer
-        for cid, binary_kmer in self.cursor.execute('SELECT * FROM kmers'):
+        for cid, binary_kmer in self.conn.execute('SELECT * FROM kmers'):
             binary_kmer = np.frombuffer(binary_kmer, dtype=np.uint8)
             kmer = decode_kmer(binary_kmer)
             out.append((cid, kmer))
@@ -56,7 +55,7 @@ cdef class GridCoverDB:
 
     cdef npc.uint8_t [:, :] get_encoded_kmers(self):
         cdef int i, j
-        cdef list kmers = simple_list(self.cursor.execute('SELECT seq FROM kmers'))
+        cdef list kmers = simple_list(self.conn.execute('SELECT seq FROM kmers'))
         cdef npc.uint8_t [:, :] binary_kmers = np.ndarray((len(kmers), self.ramifier.k), dtype=np.uint8)
         cdef const npc.uint8_t [:] binary_kmer
         for i, kmer in enumerate(kmers):
@@ -74,7 +73,7 @@ cdef class GridCoverDB:
         Called often during search, wrapped with cache.
         """
         cdef int i, j
-        cdef list kmers = simple_list(self.cursor.execute('SELECT seq FROM kmers WHERE centroid_id=?', (centroid_id,)))
+        cdef list kmers = simple_list(self.conn.execute('SELECT seq FROM kmers WHERE centroid_id=?', (centroid_id,)))
         cdef npc.uint8_t [:, :] binary_kmers = np.ndarray((len(kmers), self.ramifier.k), dtype=np.uint8)
         cdef const npc.uint8_t [:] binary_kmer
         for i, kmer in enumerate(kmers):
@@ -107,9 +106,9 @@ cdef class GridCoverDB:
         else:
             centroid_id = len(self.centroid_cache)
             self.centroid_cache[tuple(centroid)] = centroid_id
-            self.cursor.execute('INSERT INTO centroids VALUES (?,?)', (centroid_id, np.array(centroid, dtype=float).tobytes()))
+            self.conn.execute('INSERT INTO centroids VALUES (?,?)', (centroid_id, np.array(centroid, dtype=float).tobytes()))
 
-        self.cursor.execute('INSERT INTO kmers VALUES (?,?)', (centroid_id, np.array(binary_kmer, dtype=np.uint8).tobytes()))
+        self.conn.execute('INSERT INTO kmers VALUES (?,?)', (centroid_id, np.array(binary_kmer, dtype=np.uint8).tobytes()))
 
 
     cdef double [:, :] c_get_centroids(self):
@@ -117,7 +116,7 @@ cdef class GridCoverDB:
 
         Called just once on database load.
         """
-        centroid_strs = list(self.cursor.execute('SELECT * FROM centroids'))
+        centroid_strs = list(self.conn.execute('SELECT * FROM centroids'))
         cdef int i, j
         cdef double [:, :] centroids = np.ndarray((len(centroid_strs), self.ramifier.d))
         cdef const double [:] centroid
@@ -140,28 +139,28 @@ cdef class GridCoverDB:
         """Add contents of other db to this db."""
         my_centroid_strs = {
             centroid_str: cid
-            for cid, centroid_str in self.cursor.execute('SELECT * FROM centroids')
+            for cid, centroid_str in self.conn.execute('SELECT * FROM centroids')
         }
         centroid_id_remap = {}
-        for other_id, other_centroid_str in other.cursor.execute('SELECT * FROM centroids'):
+        for other_id, other_centroid_str in other.conn.execute('SELECT * FROM centroids'):
             if other_centroid_str in my_centroid_strs:
                 centroid_id_remap[other_id] = my_centroid_strs[other_centroid_str]
             else:
                 new_id = len(my_centroid_strs)
                 centroid_id_remap[other_id] = new_id
-                self.cursor.execute(
+                self.conn.execute(
                     'INSERT INTO centroids VALUES (?,?)',
                     (new_id, other_centroid_str)
                 )
 
-        for other_id, kmer in other.cursor.execute('SELECT * FROM kmers'):
+        for other_id, kmer in other.conn.execute('SELECT * FROM kmers'):
             new_id = centroid_id_remap[other_id]
-            self.cursor.execute('INSERT INTO kmers VALUES (?,?)', (new_id, kmer))
+            self.conn.execute('INSERT INTO kmers VALUES (?,?)', (new_id, kmer))
         self.commit()
 
     cdef save_ramifier(self):
         stringify = lambda M: ','.join([str(el) for el in M])
-        self.cursor.executemany(
+        self.conn.executemany(
             'INSERT INTO basics VALUES (?,?)',
             [
                 ('k', str(self.ramifier.k)),
@@ -175,7 +174,7 @@ cdef class GridCoverDB:
     cdef RotatingRamifier load_ramifier(self):
 
         def get_basic(key):
-            val = self.cursor.execute('SELECT value FROM basics WHERE name=?', (key,))
+            val = self.conn.execute('SELECT value FROM basics WHERE name=?', (key,))
             return val.fetchone()[0]
 
         def numpify(key):
@@ -194,7 +193,7 @@ cdef class GridCoverDB:
     @classmethod
     def load_from_filepath(cls, filepath):
         """Return a GridCoverDB."""
-        connection = sqlite3.connect(filepath)
+        connection = sqlite3.connect(filepath, cached_statements=10 * 1000)
         return GridCoverDB(connection)
 
     def centroids(self):
