@@ -7,7 +7,7 @@ cdef class Ramifier:
     cdef public long k
     cdef public double [:, :] rs_matrix
 
-    cdef npc.ndarray c_ramify(self, npc.uint8_t [:] binary_kmer)
+    cdef npc.ndarray c_ramify(self, npc.uint8_t [::] binary_kmer)
 
 
 cdef class RotatingRamifier:
@@ -18,7 +18,7 @@ cdef class RotatingRamifier:
     cdef public double [:, :] rotation
     cdef public double [:] center, scale
 
-    cdef npc.ndarray c_ramify(self, npc.uint8_t [:] binary_kmer)
+    cdef npc.ndarray c_ramify(self, npc.uint8_t [::] binary_kmer)
 
 cdef class StatisticalRam:
     """Identify center, scale, and rotation on a set of k-mers.

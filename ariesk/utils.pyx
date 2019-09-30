@@ -3,17 +3,17 @@ import numpy as np
 cimport numpy as npc
 
 
-cdef npc.uint8_t [:] encode_kmer(str kmer):
+cdef npc.uint8_t [::] encode_kmer(str kmer):
     cdef dict base_map = {'A': 0., 'C': 1., 'G': 2, 'T': 3}
-    cdef npc.uint8_t [:] binary_kmer = np.array(
+    cdef npc.uint8_t [::] binary_kmer = np.array(
         [base_map[base] for base in kmer], dtype=np.uint8
     )
     return binary_kmer
 
 
-cdef npc.uint8_t [:] encode_kmer_from_buffer(char * buf, int k):
+cdef npc.uint8_t [::] encode_kmer_from_buffer(char * buf, int k):
     cdef char * p = buf
-    cdef npc.uint8_t[:] kmer = np.ndarray((k,), dtype=np.uint8)
+    cdef npc.uint8_t[::] kmer = np.ndarray((k,), dtype=np.uint8)
     kmer[k - 1] = 255  # we use this as a code to indicate the kmer was not fully read
     cdef int i = 0
     while i < k:
@@ -82,13 +82,13 @@ def py_needle_fast(kmers, normalize=False):
     return out
 
 
-cdef double needle_dist(npc.uint8_t[:] k1, npc.uint8_t[:] k2, bint normalize):
+cdef double needle_dist(npc.uint8_t[::] k1, npc.uint8_t[::] k2, bint normalize):
     """Return the NW alignment distance."""
     cdef double[:, :] score = np.zeros((k1.shape[0] + 1, k2.shape[0] + 1))
     return needle_fast(k1, k2, normalize, score)
 
 
-cdef double needle_fast(npc.uint8_t[:] k1, npc.uint8_t[:] k2, bint normalize, double[:, :] score):
+cdef double needle_fast(npc.uint8_t[::] k1, npc.uint8_t[::] k2, bint normalize, double[:, :] score):
     """Return NW alignment using pre-allocated RAM."""
     cdef double match_score = 0
     cdef double mismatch_penalty = 1
@@ -114,7 +114,7 @@ cdef double needle_fast(npc.uint8_t[:] k1, npc.uint8_t[:] k2, bint normalize, do
     return final_score
 
 
-cdef double bounded_needle_fast(npc.uint8_t[:] k1, npc.uint8_t[:] k2, npc.uint8_t bound, bint normalize, double[:, :] score):
+cdef double bounded_needle_fast(npc.uint8_t[::] k1, npc.uint8_t[::] k2, npc.uint8_t bound, bint normalize, double[:, :] score):
     """Return NW alignment using pre-allocated RAM."""
     cdef double match_score = 0
     cdef double mismatch_penalty = 1

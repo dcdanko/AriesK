@@ -95,7 +95,7 @@ cdef class GridCoverDB:
         cdef npc.uint8_t [:] binary_kmer = encode_kmer(kmer)
         self.add_point_to_cluster(centroid, binary_kmer)
 
-    cdef add_point_to_cluster(self, double [:] centroid, npc.uint8_t [:] binary_kmer):
+    cdef add_point_to_cluster(self, double [:] centroid, npc.uint8_t [::] binary_kmer):
         """Store a new point in the db. centroid is not assumed to exist.
 
         Called often during build/merge

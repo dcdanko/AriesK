@@ -19,7 +19,7 @@ cdef class Ramifier:
         self.k = k
         self.rs_matrix = build_rs_matrix(self.k)
 
-    cdef npc.ndarray c_ramify(self, npc.uint8_t [:] binary_kmer):
+    cdef npc.ndarray c_ramify(self, npc.uint8_t [::] binary_kmer):
         cdef long [:, :] kmer_matrix = np.zeros((self.k, 4), dtype=int)
         cdef int i
         for i in range(self.k):
@@ -43,7 +43,7 @@ cdef class RotatingRamifier:
         self.ramifier = Ramifier(self.k)
         self.use_scale = use_scale
 
-    cdef npc.ndarray c_ramify(self, npc.uint8_t [:] binary_kmer):
+    cdef npc.ndarray c_ramify(self, npc.uint8_t [::] binary_kmer):
         cdef npc.ndarray rft = self.ramifier.c_ramify(binary_kmer)
         cdef npc.ndarray centered = (rft - self.center)
         if self.use_scale:
