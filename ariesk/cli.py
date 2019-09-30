@@ -71,7 +71,7 @@ def build_grid_cover(radius, dimension, threads, num_kmers, start_offset, outfil
     ramifier = RotatingRamifier.from_file(dimension, rotation)
     grid = GridCoverBuilder.from_filepath(outfile, ramifier, radius)
     start = time()
-    n_added = grid.fast_add_kmers_from_file(kmer_table, start=start_offset, num_to_add=num_kmers, preload=preload)
+    n_added = grid.fast_add_kmers_from_file(kmer_table, num_to_add=num_kmers)
     grid.commit()
     n_centers = grid.db.centroids().shape[0]
     grid.close()
