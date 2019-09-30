@@ -13,6 +13,7 @@ from utils cimport encode_kmer, decode_kmer
 from .ram cimport RotatingRamifier
 from .cluster cimport Cluster
 
+BUFFER_SIZE = 100 * 1000
 
 cdef simple_list(sql_cursor):
     return [el[0] for el in sql_cursor]
@@ -29,6 +30,7 @@ cdef class GridCoverDB:
 
         self.centroid_insert_buffer = []
         self.kmer_insert_buffer = []
+        self.in_buffer = 0
         self.centroid_cache = {}  # note this is quite small and critical to build performance
         self.cluster_cache = {}
         if ramifier is None:
@@ -110,7 +112,7 @@ cdef class GridCoverDB:
             self.centroid_cache[tuple(centroid)] = centroid_id
             self.centroid_insert_buffer.append((centroid_id, np.array(centroid, dtype=float).tobytes()))
         self.kmer_insert_buffer.append((centroid_id, np.array(binary_kmer, dtype=np.uint8).tobytes()))
-        if len(self.kmer_insert_buffer) > (10 * 1000):
+        if len(self.kmer_insert_buffer) >= BUFFER_SIZE:
             self._clear_buffer()
 
     cdef _clear_buffer(self):
