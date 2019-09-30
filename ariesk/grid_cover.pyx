@@ -1,6 +1,7 @@
 import numpy as np
 import sqlite3
 cimport numpy as npc
+cimport cython
 from libc.stdio cimport * # FILE, fopen, fclose
 from libc.stdlib cimport malloc, free
 
@@ -61,6 +62,8 @@ cdef class GridCoverBuilder:
                     n_added += 1
             return n_added
 
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
     def fast_add_kmers_from_file(self, str filename, num_to_add=0):
         cdef FILE * cfile = fopen(filename.encode("UTF-8"), "rb")
         if cfile == NULL:
