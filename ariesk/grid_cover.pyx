@@ -91,10 +91,8 @@ cdef class GridCoverBuilder:
             line = NULL  # I don't understand why this line is necessary but
                          # without it the program throws a strange error: 
                          # `pointer being realloacted was not allocated`
-
         fclose(cfile)
-
-        return []
+        return n_added
 
     @classmethod
     def from_filepath(cls, filepath, ramifier, box_side_len):
