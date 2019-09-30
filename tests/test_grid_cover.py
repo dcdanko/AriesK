@@ -33,6 +33,18 @@ class TestGridCover(TestCase):
         self.assertLess(n_centers, 100)
         self.assertEqual(n_points, 100)
 
+    def test_fast_build_grid_cover(self):
+        ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
+        db = GridCoverDB(sqlite3.connect(':memory:'), ramifier=ramifier, box_side_len=0.5)
+        grid = GridCoverBuilder(db)
+        grid.fast_add_kmers_from_file(KMER_TABLE)
+        grid.commit()
+        n_centers = grid.db.centroids().shape[0]
+        n_points = len(grid.db.get_kmers())
+        self.assertGreater(n_centers, 0)
+        self.assertLess(n_centers, 100)
+        self.assertEqual(n_points, 100)
+
     ''' Test is slow, not really that useful
     def test_build_parallel(self):
         out_name = 'temp.test_parallel_build.sqlite'

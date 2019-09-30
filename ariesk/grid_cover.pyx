@@ -1,9 +1,10 @@
 import numpy as np
 import sqlite3
 cimport numpy as npc
+from libc.stdio cimport * # FILE, fopen, fclose
+from libc.stdlib cimport malloc, free
 
-
-from .utils cimport encode_kmer
+from .utils cimport encode_kmer, encode_kmer_from_buffer
 from .ram cimport RotatingRamifier
 from .db cimport GridCoverDB
 
@@ -59,6 +60,41 @@ cdef class GridCoverBuilder:
                     self.add_kmer(kmer)
                     n_added += 1
             return n_added
+
+    def fast_add_kmers_from_file(self, str filename, num_to_add=0):
+        cdef FILE * cfile = fopen(filename.encode("UTF-8"), "rb")
+        if cfile == NULL:
+            raise FileNotFoundError(2, "No such file or directory: '%s'" % filename)
+
+        cdef n_added = 0
+        cdef char * line = NULL
+        cdef size_t l = 0
+        cdef ssize_t read
+        cdef size_t n_kmers_in_line, i
+        cdef npc.uint8_t[:] kmer
+        while (num_to_add <= 0) or (n_added < num_to_add):
+            read = getline(&line, &l, cfile)
+            if read == -1: break
+            if line[0] != '>':
+                n_kmers_in_line = l - self.ramifier.k + 1
+                i = 0
+                while (i < n_kmers_in_line) and ((num_to_add <= 0) or (n_added < num_to_add)):
+                    kmer = encode_kmer_from_buffer(line, self.ramifier.k)
+                    if (num_to_add > 0) and (n_added >= num_to_add):
+                        break
+                    if kmer[self.ramifier.k - 1] > 3:
+                        break
+                    self.c_add_kmer(kmer)
+                    n_added += 1
+                    line += 1
+                    i += 1
+            line = NULL  # I don't understand why this line is necessary but
+                         # without it the program throws a strange error: 
+                         # `pointer being realloacted was not allocated`
+
+        fclose(cfile)
+
+        return []
 
     @classmethod
     def from_filepath(cls, filepath, ramifier, box_side_len):
