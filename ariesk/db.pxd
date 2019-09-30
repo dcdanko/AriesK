@@ -17,6 +17,8 @@ cdef class GridCoverDB:
     cdef public dict cluster_cache
     cdef public list centroid_insert_buffer
     cdef public list kmer_insert_buffer
+    cdef public int centroid_buffer_filled
+    cdef public int kmer_buffer_filled
 
     cpdef get_kmers(self)
     cdef npc.uint8_t[:, :] get_encoded_kmers(self)
