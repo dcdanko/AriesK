@@ -13,6 +13,7 @@ from ariesk.db import GridCoverDB
 from ariesk.parallel_build import coordinate_parallel_build
 
 KMER_TABLE = join(dirname(__file__), 'small_31mer_table.csv')
+KMER_FASTA = join(dirname(__file__), 'small_fasta.fa')
 KMER_ROTATION = join(dirname(__file__), '../data/rotation_minikraken.json')
 GRID_COVER = join(dirname(__file__), 'small_grid_cover.sqlite')
 
@@ -44,6 +45,18 @@ class TestGridCover(TestCase):
         self.assertGreater(n_centers, 0)
         self.assertLess(n_centers, 100)
         self.assertEqual(n_points, 100)
+
+    def test_build_grid_cover_from_fasta(self):
+        ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
+        db = GridCoverDB(sqlite3.connect(':memory:'), ramifier=ramifier, box_side_len=0.5)
+        grid = GridCoverBuilder(db)
+        grid.fast_add_kmers_from_file(KMER_FASTA)
+        grid.commit()
+        n_centers = grid.db.centroids().shape[0]
+        n_points = len(grid.db.get_kmers())
+        self.assertGreater(n_centers, 0)
+        self.assertLess(n_centers, 189)
+        self.assertEqual(n_points, 189)
 
     ''' Test is slow, not really that useful
     def test_build_parallel(self):
