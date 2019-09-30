@@ -15,6 +15,8 @@ cdef class GridCoverDB:
     # A too simple dict based cache
     # for initial testing only as this will grow without bounds
     cdef public dict cluster_cache
+    cdef public list centroid_insert_buffer
+    cdef public list kmer_insert_buffer
 
     cpdef get_kmers(self)
     cdef npc.uint8_t[:, :] get_encoded_kmers(self)
@@ -25,5 +27,6 @@ cdef class GridCoverDB:
     cdef double [:, :] c_get_centroids(self)
     cdef RotatingRamifier load_ramifier(self)
     cdef save_ramifier(self)
+    cdef _clear_buffer(self)
 
 

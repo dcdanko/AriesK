@@ -27,6 +27,8 @@ cdef class GridCoverDB:
         self.conn.execute('CREATE INDEX IF NOT EXISTS IX_kmers_centroid ON kmers(centroid_id)')
         self.conn.execute('CREATE TABLE IF NOT EXISTS centroids (centroid_id int, vals BLOB)')
 
+        self.centroid_insert_buffer = []
+        self.kmer_insert_buffer = []
         self.centroid_cache = {}  # note this is quite small and critical to build performance
         self.cluster_cache = {}
         if ramifier is None:
@@ -106,10 +108,18 @@ cdef class GridCoverDB:
         else:
             centroid_id = len(self.centroid_cache)
             self.centroid_cache[tuple(centroid)] = centroid_id
-            self.conn.execute('INSERT INTO centroids VALUES (?,?)', (centroid_id, np.array(centroid, dtype=float).tobytes()))
+            self.centroid_insert_buffer.append((centroid_id, np.array(centroid, dtype=float).tobytes()))
+        self.kmer_insert_buffer.append((centroid_id, np.array(binary_kmer, dtype=np.uint8).tobytes()))
+        if len(self.kmer_insert_buffer) > (10 * 1000):
+            self._clear_buffer()
 
-        self.conn.execute('INSERT INTO kmers VALUES (?,?)', (centroid_id, np.array(binary_kmer, dtype=np.uint8).tobytes()))
-
+    cdef _clear_buffer(self):
+        if self.centroid_insert_buffer:
+            self.conn.executemany('INSERT INTO centroids VALUES (?,?)', self.centroid_insert_buffer)
+        if self.kmer_insert_buffer:
+            self.conn.executemany('INSERT INTO kmers VALUES (?,?)', self.kmer_insert_buffer)
+        self.centroid_insert_buffer = []
+        self.kmer_insert_buffer = []
 
     cdef double [:, :] c_get_centroids(self):
         """Return a memoryview on cetnroids in this db.
@@ -128,11 +138,14 @@ cdef class GridCoverDB:
 
     def close(self):
         """Close the DB and flush data to disk."""
+        self.commit()
+        self._clear_buffer()
         self.conn.commit()
         self.conn.close()
 
     def commit(self):
         """Flush data to disk."""
+        self._clear_buffer()
         self.conn.commit()
 
     cpdef load_other(self, GridCoverDB other):
