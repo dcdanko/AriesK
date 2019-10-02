@@ -12,12 +12,11 @@ cdef npc.uint8_t [::] encode_kmer(str kmer):
 
 
 cdef npc.uint8_t [::] encode_kmer_from_buffer(char * buf, int k):
-    cdef char * p = buf
     cdef npc.uint8_t[::] kmer = np.ndarray((k,), dtype=np.uint8)
     kmer[k - 1] = 255  # we use this as a code to indicate the kmer was not fully read
     cdef int i = 0
     while i < k:
-        c = p[0]
+        c = buf[0]
         if c == 0:
             break  # this means the buffer did not have enough to read
         if c == 'A':
@@ -28,8 +27,10 @@ cdef npc.uint8_t [::] encode_kmer_from_buffer(char * buf, int k):
             kmer[i] = 2
         elif c == 'T':
             kmer[i] = 3
+        elif c == '\n':
+            i -= 1  # special case for line wrapping in fasta
         i += 1
-        p += 1
+        buf += 1
     return kmer
 
 

@@ -143,6 +143,28 @@ def search_seq(port, radius, inner_radius, inner_metric, search_mode, outfile, k
         for result in results:
             print(f'{kmer} {result}', file=outfile)
 
+
+@main.command('search-seq-manual')
+@click.option('-p', '--port', default=5432)
+@click.option('-r', '--radius', default=1.0)
+@click.option('-i', '--inner-radius', default=1.0)
+@click.option('-m', '--inner-metric', default='needle', type=click.Choice(['hamming', 'needle', 'none']))
+@click.option('-s', '--search-mode', default='full', type=click.Choice(['full', 'coarse']))
+@click.option('-o', '--outfile', default='-', type=click.File('w'))
+@click.argument('kmers', nargs=-1)
+def search_seq_manual(port, radius, inner_radius, inner_metric, search_mode, outfile, kmers):
+    searcher = SearchClient(port)
+    for kmer in kmers:
+        start = time()
+        results = searcher.search(
+            kmer, radius, inner_radius,
+            search_mode=search_mode, inner_metric=inner_metric
+        )
+        elapsed = time() - start
+        click.echo(f'Search complete in {elapsed:.5}s', err=True)
+        for result in results:
+            print(f'{kmer} {result}', file=outfile)
+
 '''
 @main.command('search-multi-seq')
 @click.option('-p', '--port', default=5432)
