@@ -25,10 +25,10 @@ cdef class GridCoverSearcher:
     cdef public RotatingRamifier ramifier
     cdef public bint logging
     cdef public object logger
-    cdef int sub_k
-    cdef int n_hashes
-    cdef int array_size
-    cdef npc.uint64_t[:, :] hash_functions
+    cdef public int sub_k
+    cdef public int n_hashes
+    cdef public int array_size
+    cdef public npc.uint64_t[:, :] hash_functions
 
     cdef public object tree
 
@@ -43,7 +43,7 @@ cdef class GridCoverSearcher:
                 self.centroid_rfts[i, j] += (self.db.box_side_len / 2)
         self.tree = cKDTree(self.centroid_rfts)
         self.logging = False
-        self.sub_k = 6
+        self.sub_k = 7
         self.n_hashes = 8
         self.array_size = 1000
         self._pre_compute_hashes()
@@ -62,15 +62,99 @@ cdef class GridCoverSearcher:
     def py_coarse_search(self, str kmer, double search_radius, double eps=1.01):
         return self._coarse_search(encode_kmer(kmer), search_radius, eps=eps)
 
-    cdef list _coarse_search(self, npc.uint8_t[:] binary_kmer, double search_radius, double eps=1.01):
+    def py_search(self, str kmer, double search_radius, max_filter_misses=None,
+        double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
+        if max_filter_misses is None:
+            max_filter_misses = int(ceil(inner_radius * len(kmer)))
+        cdef npc.uint8_t[:, :] hits = np.array(self.search(
+            encode_kmer(kmer),
+            search_radius,
+            max_filter_misses,
+            inner_radius=inner_radius,
+            eps=eps,
+            inner_metric=inner_metric
+        ), dtype=np.uint8)
+        cdef list out = []
+        cdef int i
+
+        for i in range(hits.shape[0]):
+            out.append(decode_kmer(hits[i, :]))
+        return out
+
+    def file_search(self,
+                    str filepath, str out_filepath, double search_radius, max_filter_misses=None,
+                    double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
+        if max_filter_misses is None:
+            max_filter_misses = int(ceil(inner_radius * self.ramifier.k))
+        cdef str kmer
+        cdef npc.uint8_t[:, :] results
+        cdef int i
+        with open(filepath) as f, open(out_filepath, 'w') as o:
+            for line in f:
+                kmer = line.strip().split(',')[0].split('\t')[0]
+                results = self.search(
+                    encode_kmer(kmer), search_radius,
+                    max_filter_misses,
+                    inner_radius=inner_radius, inner_metric=inner_metric, eps=eps
+                )
+                for i in range(results.shape[0]):
+                    result = decode_kmer(results[i, :])
+                    o.write(f'{kmer} {result}\n')
+
+    @classmethod
+    def from_filepath(cls, filepath):
+        return cls(GridCoverDB.load_from_filepath(filepath))
+
+    cdef list _coarse_search(
+        self,
+        npc.uint8_t[:] binary_kmer,
+        double search_radius,
+        double eps=1.01
+    ):
+        """Return a list of the cluster indices which are within <radius> of the query."""
         cdef double coarse_search_radius = search_radius + (eps * self.radius)
         cdef double[:] rft = self.ramifier.c_ramify(binary_kmer)
         cdef list centroid_hits = self.tree.query_ball_point(rft, coarse_search_radius)
         return centroid_hits
 
-    cdef npc.uint8_t[:, :] _fine_search(self, npc.uint8_t[:] query_kmer, Cluster cluster,
-                                        npc.uint8_t[:] row_hits,
-                                        double inner_radius=0.2, inner_metric='needle'):
+    cdef npc.uint8_t[:] _filter_search(
+        self,
+        npc.uint8_t[:] binary_kmer,
+        list centers,
+        npc.uint64_t[:, :] hash_vals,
+        int max_misses,
+        double inner_radius=0.2,
+        double eps=1.01,
+        inner_metric='needle'
+    ):
+        """Return a binary numpy array. Each element is 1 if a cluster passed filtering, otherwise 0."""
+        cdef int i = 0
+        cdef npc.uint8_t[:, :] searched
+        cdef Cluster cluster
+        cdef npc.uint8_t[:] filtered_centers = np.zeros((len(centers,)), dtype=np.uint8)
+        cdef int n_points_original = 0
+        for center in centers:
+            cluster = self.db.get_cluster(center, self.array_size, self.hash_functions, self.sub_k)
+            if self.logging:
+                n_points_original += cluster.seqs.shape[0]
+            if inner_metric == 'none':
+                filtered_centers[i] = 1
+            elif cluster.seqs.shape[0] <= 0 or cluster.test_membership_hvals(hash_vals, max_misses):
+                filtered_centers[i] = 1
+            i += 1
+        if self.logging:
+            self.logger(f'Cluster filtering complete. {sum(filtered_centers)} clusters remaining.')
+            self.logger(f'Allowing up to {max_misses}.')
+        return filtered_centers
+
+    cdef npc.uint8_t[:, :] _fine_search(
+        self,
+        npc.uint8_t[:] query_kmer,
+        Cluster cluster,
+        npc.uint8_t[:] row_hits,
+        double inner_radius=0.2,
+        inner_metric='needle'
+    ):
         """Search a single cluster and return all members within inner_radius."""
         cdef npc.uint8_t[:, :] out = np.ndarray(
             (cluster.seqs.shape[0], self.ramifier.k),
@@ -93,47 +177,16 @@ cdef class GridCoverSearcher:
         out = out[0:added, :]
         return out
 
-    cdef npc.uint8_t[:] _filter_search(self, npc.uint8_t[:] binary_kmer, list centers,
-        npc.uint64_t[:, :] hash_vals, double inner_radius=0.2,
-        double eps=1.01, inner_metric='needle'):
-        cdef int i = 0
-        cdef npc.uint8_t[:, :] searched
-        cdef Cluster cluster
-        cdef npc.uint8_t[:] filtered_centers = np.zeros((len(centers,)), dtype=np.uint8)
-        cdef int max_misses = <int> ceil(inner_radius * binary_kmer.shape[0])
-        cdef int n_points_original = 0
-        for center in centers:
-            cluster = self.db.get_cluster(center, self.array_size, self.hash_functions, self.sub_k)
-            if self.logging:
-                n_points_original += cluster.seqs.shape[0]
-            if inner_metric == 'none':
-                filtered_centers[i] = 1
-            elif cluster.seqs.shape[0] <= 0 or cluster.test_membership_hvals(hash_vals, max_misses):
-                filtered_centers[i] = 1
-            i += 1
-        if self.logging:
-            self.logger(f'Cluster filtering complete. {sum(filtered_centers)} clusters remaining.')
-            self.logger(f'Allowing up to {max_misses}.')
-        return filtered_centers
-
-    def py_search(self, str kmer, double search_radius,
-        double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
-        cdef npc.uint8_t[:, :] hits = np.array(self.search(
-            encode_kmer(kmer),
-            search_radius,
-            inner_radius=inner_radius,
-            eps=eps,
-            inner_metric=inner_metric
-        ), dtype=np.uint8)
-        cdef list out = []
-        cdef int i
-
-        for i in range(hits.shape[0]):
-            out.append(decode_kmer(hits[i, :]))
-        return out
-
-    cdef npc.uint8_t[:, :] search(self, npc.uint8_t[:] binary_kmer, double search_radius,
-        double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
+    cdef npc.uint8_t[:, :] search(
+        self,
+        npc.uint8_t[:] binary_kmer,
+        double search_radius,
+        int max_filter_misses,
+        double inner_radius=0.2,
+        double eps=1.01,
+        inner_metric='needle'
+    ):
+        """Perform 3-stage search on a query. Return an array of k-mers with dimensions (n_hits, k)."""
         # Coarse Search
         if self.logging:
             self.logger(f'Starting search.')
@@ -141,6 +194,7 @@ cdef class GridCoverSearcher:
         if self.logging:
             self.logger(f'Coarse search complete. {len(centers)} clusters.')
 
+        # Filtering
         cdef int i = 0
         cdef npc.uint64_t[:, :] hash_vals = np.ndarray(
             (binary_kmer.shape[0] - self.sub_k + 1, self.n_hashes), dtype=np.uint64
@@ -153,6 +207,7 @@ cdef class GridCoverSearcher:
             binary_kmer,
             centers,
             hash_vals,
+            max_filter_misses,
             inner_radius=inner_radius,
             eps=eps,
             inner_metric=inner_metric,
@@ -162,7 +217,6 @@ cdef class GridCoverSearcher:
         cdef npc.uint8_t[:, :] out = np.ndarray((0, self.ramifier.k), dtype=np.uint8)
         i = -1
         cdef npc.uint8_t[:] row_hits
-        cdef int max_misses = <int> ceil(inner_radius * binary_kmer.shape[0])
         for center in centers:
             i += 1
             if filtered_centers[i] == 1:
@@ -172,7 +226,7 @@ cdef class GridCoverSearcher:
                     self.hash_functions,
                     self.sub_k
                 )
-                row_hits = cluster.test_row_membership(hash_vals, max_misses)
+                row_hits = cluster.test_row_membership(hash_vals, max_filter_misses)
                 if inner_metric == 'none' or max(row_hits) > 0:
                     searched = self._fine_search(
                         binary_kmer,
@@ -185,24 +239,3 @@ cdef class GridCoverSearcher:
         if self.logging:
             self.logger(f'Fine search complete. {out.shape[0]} candidates passed.')
         return out
-
-    def file_search(self,
-                    str filepath, str out_filepath, double search_radius,
-                    double inner_radius=0.2, double eps=1.01, inner_metric='needle'):
-        cdef str kmer
-        cdef npc.uint8_t[:, :] results
-        cdef int i
-        with open(filepath) as f, open(out_filepath, 'w') as o:
-            for line in f:
-                kmer = line.strip().split(',')[0].split('\t')[0]
-                results = self.search(
-                    encode_kmer(kmer), search_radius,
-                    inner_radius=inner_radius, inner_metric=inner_metric, eps=eps
-                )
-                for i in range(results.shape[0]):
-                    result = decode_kmer(results[i, :])
-                    o.write(f'{kmer} {result}\n')
-
-    @classmethod
-    def from_filepath(cls, filepath):
-        return cls(GridCoverDB.load_from_filepath(filepath))

@@ -4,6 +4,7 @@ from json import dumps, loads
 from time import time
 
 from ariesk.searcher import GridCoverSearcher
+from ariesk.params import ParameterPicker
 
 '''
 Allowed client->server message terms. *mandatory
@@ -72,6 +73,7 @@ class SearchServer:
         self.socket.bind(f'tcp://*:{port}')
         self.running = False
         self.logger = logger
+        self.param_picker = ParameterPicker(self.grid.ramifier.d, self.grid.ramifier.k, self.grid.sub_k)
         if self.logger:
             timing_logger = TimingLogger(logger)
             self.grid.add_logger(timing_logger.log)
@@ -103,9 +105,17 @@ class SearchServer:
         self.running = False
 
     def full_search(self, msg):
+        try:
+            max_filter_misses = int(msg.get(
+                'max_filter_misses',
+                self.param_picker.min_filter_overlap(msg['inner_radius'])
+            ))
+        except KeyError:
+            max_filter_misses = None
         results = self.grid.py_search(
             msg['query'],
             msg['outer_radius'],
+            max_filter_misses=max_filter_misses,
             inner_radius=msg['inner_radius'],
             inner_metric=msg['inner_metric'],
         )
