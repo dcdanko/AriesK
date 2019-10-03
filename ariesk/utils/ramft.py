@@ -1,3 +1,4 @@
+# cython: profile=True
 
 from math import gcd
 import numpy as np

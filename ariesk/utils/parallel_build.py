@@ -1,3 +1,4 @@
+# cython: profile=True
 
 import subprocess as sp
 from os import remove, environ

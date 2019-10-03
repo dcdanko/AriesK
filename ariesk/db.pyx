@@ -1,3 +1,4 @@
+# cython: profile=True
 
 import sqlite3
 import numpy as np

@@ -1,3 +1,4 @@
+# cython: profile=True
 
 cimport numpy as npc
 

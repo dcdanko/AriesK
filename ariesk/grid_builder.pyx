@@ -1,3 +1,5 @@
+# cython: profile=True
+
 import numpy as np
 import sqlite3
 cimport numpy as npc
