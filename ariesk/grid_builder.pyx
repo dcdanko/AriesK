@@ -1,4 +1,5 @@
 # cython: profile=True
+# cython: language_level=3
 
 import numpy as np
 import sqlite3
@@ -81,7 +82,7 @@ cdef class GridCoverBuilder:
         while (num_to_add <= 0) or (n_added < num_to_add):
             read = getline(&line, &l, cfile)
             if read == -1: break
-            if line[0] != '>':
+            if line[0] != b'>':
                 n_kmers_in_line = l - self.ramifier.k + 1
                 i = 0
                 while (i < n_kmers_in_line) and ((num_to_add <= 0) or (n_added < num_to_add)):
@@ -118,7 +119,7 @@ cdef class GridCoverBuilder:
             read = getdelim(&line, &l, b'>', cfile)  # read
             if read == -1: break
             while (num_to_add <= 0) or (n_added < num_to_add):
-                if line[0] == '\n':
+                if line[0] == b'\n':
                     line += 1
                 kmer = encode_kmer_from_buffer(line, self.ramifier.k)
                 if (num_to_add > 0) and (n_added >= num_to_add):

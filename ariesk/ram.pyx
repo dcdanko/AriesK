@@ -1,4 +1,5 @@
 # cython: profile=True
+# cython: language_level=3
 
 import numpy as np
 cimport numpy as npc
@@ -7,7 +8,7 @@ from libc.stdio cimport *
 from posix.stdio cimport * # FILE, fopen, fclose
 from libc.stdlib cimport malloc, free, rand
 
-from utils.ramft import build_rs_matrix
+from ariesk.utils.ramft import build_rs_matrix
 
 from json import loads
 
@@ -155,7 +156,7 @@ cdef class StatisticalRam:
             read = getdelim(&line, &l, b'>', cfile)  # read
             if read == -1: break
             while n_added < self.max_size:
-                if line[0] == '\n':
+                if line[0] == b'\n':
                     line += 1
                 kmer = encode_kmer_from_buffer(line, self.ramifier.k)
                 if n_added >= self.max_size:

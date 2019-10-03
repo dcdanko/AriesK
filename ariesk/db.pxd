@@ -1,3 +1,4 @@
+# cython: language_level=3
 
 from ariesk.ram cimport RotatingRamifier
 from ariesk.cluster cimport Cluster

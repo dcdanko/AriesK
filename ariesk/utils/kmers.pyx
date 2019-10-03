@@ -1,4 +1,5 @@
 # cython: profile=True
+# cython: language_level=3
 
 import numpy as np
 cimport numpy as npc
@@ -20,15 +21,15 @@ cdef npc.uint8_t [::] encode_kmer_from_buffer(char * buf, int k):
         c = buf[0]
         if c == 0:
             break  # this means the buffer did not have enough to read
-        if c == 'A':
+        if c == b'A':
             kmer[i] = 0
-        elif c == 'C':
+        elif c == b'C':
             kmer[i] = 1
-        elif c == 'G':
+        elif c == b'G':
             kmer[i] = 2
-        elif c == 'T':
+        elif c == b'T':
             kmer[i] = 3
-        elif c == '\n':
+        elif c == b'\n':
             i -= 1  # special case for line wrapping in fasta
         i += 1
         buf += 1

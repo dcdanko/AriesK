@@ -1,4 +1,5 @@
 # cython: profile=True
+# cython: language_level=3
 
 from math import gcd
 import numpy as np
