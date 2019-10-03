@@ -40,17 +40,18 @@ def calculate_pca_rotation(kmer_len, num_kmers, outfile, kmer_table):
 
 @build_cli.command('rotation-fasta')
 @click.option('-k', '--kmer-len', default=31)
+@click.option('-d', '--dropout', default=1000, help='Only keep every nth kmer (millionths)')
 @click.option('-n', '--num-kmers', default=1000, help='Number of kmers to compare.')
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
 @click.argument('fasta_list', type=click.File('r'))
-def calculate_pca_rotation_fasta(kmer_len, num_kmers, outfile, fasta_list):
+def calculate_pca_rotation_fasta(kmer_len, dropout, num_kmers, outfile, fasta_list):
     """Calculate a PCA rotation from a set of k-mers."""
     stat_ram = StatisticalRam(kmer_len, num_kmers)
     fasta_list = [line.strip() for line in fasta_list]
     with click.progressbar(fasta_list) as fastas:
         for fasta_filename in fastas:
             try:
-                stat_ram.fast_add_kmers_from_fasta(fasta_filename)
+                stat_ram.fast_add_kmers_from_fasta(fasta_filename, dropout=dropout)
             except IndexError:
                 break
     out = {

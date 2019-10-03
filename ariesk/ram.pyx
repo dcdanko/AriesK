@@ -5,6 +5,7 @@ cimport cython
 from libc.stdio cimport *
 from posix.stdio cimport * # FILE, fopen, fclose
 from libc.stdlib cimport malloc, free
+from libc.math cimport rand
 
 from utils.ramft import build_rs_matrix
 
@@ -138,7 +139,7 @@ cdef class StatisticalRam:
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    def fast_add_kmers_from_fasta(self, str filename):
+    def fast_add_kmers_from_fasta(self, str filename, int dropout=1000):
         cdef FILE * cfile = fopen(filename.encode("UTF-8"), "rb")
         if cfile == NULL:
             raise FileNotFoundError(2, "No such file or directory: '%s'" % filename)
@@ -161,8 +162,9 @@ cdef class StatisticalRam:
                     break
                 if kmer[self.ramifier.k - 1] > 3:
                     break
-                self.c_add_kmer(kmer)
-                n_added += 1
+                if (rand() % (1000 * 1000)) < dropout:
+                    self.c_add_kmer(kmer)
+                    n_added += 1
                 line += 1
             line = NULL  # I don't understand why this line is necessary but
                          # without it the program throws a strange error: 
