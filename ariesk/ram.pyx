@@ -4,8 +4,7 @@ cimport numpy as npc
 cimport cython
 from libc.stdio cimport *
 from posix.stdio cimport * # FILE, fopen, fclose
-from libc.stdlib cimport malloc, free
-from libc.math cimport rand
+from libc.stdlib cimport malloc, free, rand
 
 from utils.ramft import build_rs_matrix
 
