@@ -1,10 +1,9 @@
 import click
 import pandas as pd
 import numpy as np
-
 from time import clock
 
-from ariesk.dists import DistanceFactory
+from ariesk.utils.dists import DistanceFactory
 from ariesk.ram import RotatingRamifier
 from ariesk.linear_searcher import LinearSearcher
 

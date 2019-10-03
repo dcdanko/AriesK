@@ -4,9 +4,9 @@ import random
 
 from os.path import join, dirname
 from unittest import TestCase
-from ariesk.dists import DistanceFactory
+from ariesk.utils.dists import DistanceFactory
 
-from ariesk.utils import (
+from ariesk.utils.kmers import (
     py_encode_kmer,
     py_decode_kmer,
     py_needle,

@@ -1,6 +1,6 @@
 
-from .ram cimport RotatingRamifier
-from .cluster cimport Cluster
+from ariesk.ram cimport RotatingRamifier
+from ariesk.cluster cimport Cluster
 import numpy as np
 cimport numpy as npc
 

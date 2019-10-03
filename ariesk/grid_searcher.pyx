@@ -5,11 +5,11 @@ cimport numpy as npc
 from scipy.spatial import cKDTree
 
 from libc.math cimport ceil
-from .ram cimport RotatingRamifier
-from .db cimport GridCoverDB
-from .cluster cimport Cluster
-from .bloom_filter cimport fnva
-from .utils cimport (
+from ariesk.ram cimport RotatingRamifier
+from ariesk.db cimport GridCoverDB
+from ariesk.cluster cimport Cluster
+from ariesk.utils.bloom_filter cimport fnva
+from ariesk.utils.kmers cimport (
     encode_kmer,
     decode_kmer,
     needle_fast,

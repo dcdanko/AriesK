@@ -32,3 +32,4 @@ cdef class StatisticalRam:
     cdef public int max_size
 
     cpdef add_kmer(self, str kmer)
+    cdef c_add_kmer(self, npc.uint8_t [:] binary_kmer)

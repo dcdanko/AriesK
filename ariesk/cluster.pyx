@@ -2,8 +2,8 @@
 import numpy as np
 cimport numpy as npc
 
-from ariesk.bloom_filter cimport BloomGrid, fnva
-from .utils cimport (
+from ariesk.utils.bloom_filter cimport BloomGrid, fnva
+from ariesk.utils.kmers cimport (
     encode_kmer,
     decode_kmer,
 )

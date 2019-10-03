@@ -10,8 +10,8 @@ extra_compile_args = ['-std=c++11', "-O3", "-ffast-math", "-march=native", "-fop
 extra_link_args = ['-fopenmp']
 
 
-def make_ext(path):
-    name = path.split('.pyx')[0].replace('/', '.')
+def make_ext(args):
+    path, name = args
     return Extension(
         name,
         [path],
@@ -23,14 +23,16 @@ def make_ext(path):
 
 extensions = [
     make_ext(el) for el in [
-        'ariesk/ram.pyx',
-        'ariesk/grid_cover.pyx',
-        'ariesk/searcher.pyx',
-        'ariesk/linear_searcher.pyx',
-        'ariesk/db.pyx',
-        'ariesk/bloom_filter.pyx',
-        'ariesk/cluster.pyx',
-        'ariesk/utils.pyx',
+        ('ariesk/utils/bloom_filter.pyx', 'ariesk.utils.bloom_filter'),
+        ('ariesk/utils/kmers.pyx', 'ariesk.utils.kmers'),
+        ('ariesk/utils/dists.pyx', 'ariesk.utils.dists'),
+
+        ('ariesk/grid_builder.pyx', 'ariesk.grid_builder'),
+        ('ariesk/grid_searcher.pyx', 'ariesk.grid_searcher'),
+        ('ariesk/linear_searcher.pyx', 'ariesk.linear_searcher'),
+        ('ariesk/db.pyx', 'ariesk.db'),
+        ('ariesk/cluster.pyx', 'ariesk.cluster'),
+        ('ariesk/ram.pyx', 'ariesk.ram'),
     ]
 ]
 

@@ -9,9 +9,9 @@ from pybloom import BloomFilter
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 
-from utils cimport encode_kmer, decode_kmer
-from .ram cimport RotatingRamifier
-from .cluster cimport Cluster
+from ariesk.utils.kmers cimport encode_kmer, decode_kmer
+from ariesk.ram cimport RotatingRamifier
+from ariesk.cluster cimport Cluster
 
 BUFFER_SIZE = 10 * 1000
 

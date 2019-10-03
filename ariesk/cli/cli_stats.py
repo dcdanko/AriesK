@@ -5,7 +5,7 @@ import numpy as np
 from json import dumps, loads
 from time import clock
 
-from ariesk.searcher import GridCoverSearcher
+from ariesk.grid_searcher import GridCoverSearcher
 from ariesk.db import GridCoverDB
 
 

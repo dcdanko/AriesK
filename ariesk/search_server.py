@@ -3,7 +3,7 @@ import zmq
 from json import dumps, loads
 from time import time
 
-from ariesk.searcher import GridCoverSearcher
+from ariesk.grid_searcher import GridCoverSearcher
 from ariesk.params import ParameterPicker
 
 '''

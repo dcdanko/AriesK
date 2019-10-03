@@ -6,9 +6,9 @@ from libc.stdio cimport *
 from posix.stdio cimport * # FILE, fopen, fclose
 from libc.stdlib cimport malloc, free
 
-from .utils cimport encode_kmer, encode_kmer_from_buffer
-from .ram cimport RotatingRamifier
-from .db cimport GridCoverDB
+from ariesk.utils.kmers cimport encode_kmer, encode_kmer_from_buffer
+from ariesk.ram cimport RotatingRamifier
+from ariesk.db cimport GridCoverDB
 
 
 cdef class GridCoverBuilder:

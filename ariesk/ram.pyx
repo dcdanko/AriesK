@@ -1,13 +1,18 @@
 
 import numpy as np
 cimport numpy as npc
+cimport cython
+from libc.stdio cimport *
+from posix.stdio cimport * # FILE, fopen, fclose
+from libc.stdlib cimport malloc, free
 
-from .ramft import build_rs_matrix
+from utils.ramft import build_rs_matrix
 
 from json import loads
 
-from .utils cimport (
+from ariesk.utils.kmers cimport (
     encode_kmer,
+    encode_kmer_from_buffer,
     decode_kmer,
 )
 
@@ -94,6 +99,11 @@ cdef class StatisticalRam:
         self.rfts[self.num_kmers_added] = rft
         self.num_kmers_added += 1
 
+    cdef c_add_kmer(self, npc.uint8_t [:] kmer):
+        cdef double [:] rft = self.ramifier.c_ramify(kmer)
+        self.rfts[self.num_kmers_added] = rft
+        self.num_kmers_added += 1
+
     def get_centers(self):
         return np.mean(self.rfts, axis=0)
 
@@ -126,3 +136,36 @@ cdef class StatisticalRam:
                     n_added += 1
             return n_added
 
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    def fast_add_kmers_from_fasta(self, str filename, num_to_add=0):
+        cdef FILE * cfile = fopen(filename.encode("UTF-8"), "rb")
+        if cfile == NULL:
+            raise FileNotFoundError(2, "No such file or directory: '%s'" % filename)
+
+        cdef int n_added = 0
+        cdef char * line = NULL
+        cdef size_t l = 0
+        cdef ssize_t read
+        cdef size_t n_kmers_in_line, i
+        cdef npc.uint8_t[:] kmer
+        while (num_to_add <= 0) or (n_added < num_to_add):
+            getline(&line, &l, cfile)  # header
+            read = getdelim(&line, &l, b'>', cfile)  # read
+            if read == -1: break
+            while (num_to_add <= 0) or (n_added < num_to_add):
+                if line[0] == '\n':
+                    line += 1
+                kmer = encode_kmer_from_buffer(line, self.ramifier.k)
+                if (num_to_add > 0) and (n_added >= num_to_add):
+                    break
+                if kmer[self.ramifier.k - 1] > 3:
+                    break
+                self.c_add_kmer(kmer)
+                n_added += 1
+                line += 1
+            line = NULL  # I don't understand why this line is necessary but
+                         # without it the program throws a strange error: 
+                         # `pointer being realloacted was not allocated`
+        fclose(cfile)
+        return n_added

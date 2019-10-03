@@ -7,10 +7,10 @@ from os.path import join, dirname
 from unittest import TestCase
 
 from ariesk.ram import RotatingRamifier
-from ariesk.grid_cover import GridCoverBuilder
-from ariesk.searcher import GridCoverSearcher
+from ariesk.grid_builder import GridCoverBuilder
+from ariesk.grid_searcher import GridCoverSearcher
 from ariesk.db import GridCoverDB
-from ariesk.parallel_build import coordinate_parallel_build
+from ariesk.utils.parallel_build import coordinate_parallel_build
 
 KMER_TABLE = join(dirname(__file__), 'small_31mer_table.csv')
 KMER_FASTA = join(dirname(__file__), 'small_fasta.fa')

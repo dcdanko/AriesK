@@ -4,7 +4,7 @@ cimport numpy as npc
 
 from libc.math cimport log, floor, ceil, log2
 
-from ariesk.utils cimport encode_kmer, decode_kmer
+from ariesk.utils.kmers cimport encode_kmer, decode_kmer
 
 
 cdef npc.uint64_t fnva(npc.uint8_t[:] data, npc.uint64_t[:] access_order):

@@ -2,7 +2,7 @@
 import numpy as np
 cimport numpy as npc
 
-from ariesk.bloom_filter cimport BloomGrid
+from ariesk.utils.bloom_filter cimport BloomGrid
 
 
 cdef class Cluster:

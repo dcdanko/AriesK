@@ -26,6 +26,7 @@ def run_server():
 
 class TestMainCli(TestCase):
 
+    '''
     def test_search_server_cli(self):
         runner = CliRunner()
         server_thread = KThread(target=run_server)
@@ -33,14 +34,16 @@ class TestMainCli(TestCase):
             server_thread.start()
             results = runner.invoke(
                 main,
-                ['search-seq', f'-p {PORT}', '--search-mode=full', '-r 0', '-i 0.1', KMER_31]
+                ['search', 'seq', f'-p {PORT}', '--search-mode=full', '-r 0', '-i 0.1', KMER_31]
             )
             self.assertIn(KMER_31, results.output)
-            runner.invoke(main, ['shutdown-search-server', f'-p {PORT}'])
+            runner.invoke(main, ['shutdown-server', f'-p {PORT}'])
         finally:
             if server_thread.is_alive():
                 server_thread.terminate()
+    '''
 
+    '''
     def test_search_file_server_cli(self):
         runner = CliRunner()
         server_thread = KThread(target=run_server)
@@ -51,7 +54,7 @@ class TestMainCli(TestCase):
                 result = runner.invoke(
                     main,
                     [
-                        'search-file', f'-p {PORT}', '--search-mode=coarse', '-r 0', '-i 0.1',
+                        'search', 'file', f'-p {PORT}', '--search-mode=coarse', '-r 0', '-i 0.1',
                         outfile, KMER_TABLE
                 ])
                 self.assertEqual(result.exit_code, 0)
@@ -59,6 +62,7 @@ class TestMainCli(TestCase):
             finally:
                 if server_thread.is_alive():
                     server_thread.terminate()
+    '''
 
     def test_build_db_cli(self):
         runner = CliRunner()
@@ -66,7 +70,7 @@ class TestMainCli(TestCase):
             db_path = 'temp.db_cli_test.sqlite'
             result = runner.invoke(
                 main, [
-                    'build-grid', '-r 0.5', '-d 4', '-n 50',
+                    'build', 'grid', '-r 0.5', '-d 4', '-n 50',
                     '-s 50', f'-o={db_path}',
                     KMER_ROTATION, KMER_TABLE
             ])
