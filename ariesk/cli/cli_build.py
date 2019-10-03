@@ -82,6 +82,11 @@ def build_grid_cover(radius, dimension, threads, num_kmers, start_offset, outfil
     n_added = grid.fast_add_kmers_from_file(kmer_table, num_to_add=num_kmers)
     grid.commit()
     n_centers = grid.db.centroids().shape[0]
+    with click.progressbar(list(range(n_centers))) as centroid_ids:
+        for centroid_id in centroid_ids:
+            grid.db.build_and_store_bloom_grid(
+                centroid_id, grid.array_size, grid.hash_functions, grid.sub_k
+            )
     grid.close()
     add_time = time() - start
     click.echo(f'Added {n_added:,} kmers to {outfile} in {add_time:.5}s. {n_centers:,} clusters.', err=True)

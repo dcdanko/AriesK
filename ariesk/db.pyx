@@ -7,11 +7,11 @@ import numpy as np
 cimport numpy as npc
 
 from multiprocessing import Lock
-from pybloom import BloomFilter
 
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 
+from ariesk.utils.bloom_filter cimport BloomGrid
 from ariesk.utils.kmers cimport encode_kmer, decode_kmer
 from ariesk.ram cimport RotatingRamifier
 from ariesk.cluster cimport Cluster
@@ -36,12 +36,9 @@ cdef class GridCoverDB:
 
     def __cinit__(self, conn, ramifier=None, box_side_len=None, multithreaded=False):
         self.conn = conn
-        self.conn.execute('CREATE TABLE IF NOT EXISTS basics (name text, value text)')
-        self.conn.execute('CREATE TABLE IF NOT EXISTS kmers (centroid_id int, seq BLOB)')
-        self.conn.execute('CREATE INDEX IF NOT EXISTS IX_kmers_centroid ON kmers(centroid_id)')
-        self.conn.execute('CREATE TABLE IF NOT EXISTS centroids (centroid_id int, vals BLOB)')
+        self._build_tables()
 
-        self.centroid_insert_buffer = [None]  * BUFFER_SIZE
+        self.centroid_insert_buffer = [None] * BUFFER_SIZE
         self.centroid_buffer_filled = 0
         self.kmer_insert_buffer = [None] * BUFFER_SIZE
         self.kmer_buffer_filled = 0
@@ -51,7 +48,7 @@ cdef class GridCoverDB:
         if ramifier is None:
             self.ramifier = self.load_ramifier()
             self.box_side_len = float(self.conn.execute(
-                    'SELECT value FROM basics WHERE name=?', ('box_side_len',)
+                'SELECT value FROM basics WHERE name=?', ('box_side_len',)
             ).fetchone()[0])
         else:
             assert box_side_len is not None
@@ -62,6 +59,19 @@ cdef class GridCoverDB:
             )
             self.ramifier = ramifier
             self.save_ramifier()
+
+    cdef _build_tables(self):
+        self.conn.execute('CREATE TABLE IF NOT EXISTS basics (name text, value text)')
+        self.conn.execute('CREATE TABLE IF NOT EXISTS kmers (centroid_id int, seq BLOB)')
+        self.conn.execute('CREATE INDEX IF NOT EXISTS IX_kmers_centroid ON kmers(centroid_id)')
+        self.conn.execute('CREATE TABLE IF NOT EXISTS centroids (centroid_id int, vals BLOB)')
+        self.conn.execute(
+            '''CREATE TABLE IF NOT EXISTS blooms (
+                centroid_id int, col_k int, row_k int, grid_width int, grid_height int,
+                bitarray BLOB, bitgrid BLOB, row_hashes BLOB, col_hashes BLOB
+            )'''
+        )
+        self.conn.execute('CREATE INDEX IF NOT EXISTS IX_blooms_centroid ON blooms(centroid_id)')
 
     cpdef get_kmers(self):
         cdef list out = []
@@ -101,7 +111,7 @@ cdef class GridCoverDB:
                 binary_kmers[i, j] = binary_kmer[j]
         return binary_kmers
 
-    cdef Cluster get_cluster(self, int centroid_id, int filter_len, npc.uint64_t[:, :] hashes, sub_k):
+    cdef Cluster get_cluster(self, int centroid_id, int filter_len, npc.uint64_t[:, :] hashes, int sub_k):
         if centroid_id in self.cluster_cache:
             return self.cluster_cache[centroid_id]
         cdef npc.uint8_t[:, :] seqs = self.get_cluster_members(centroid_id)
@@ -109,6 +119,51 @@ cdef class GridCoverDB:
         cluster.build_bloom_grid(filter_len, hashes)
         self.cluster_cache[centroid_id] = cluster
         return cluster
+
+    cdef store_bloom_grid(self, Cluster cluster):
+        self.conn.execute(
+            'INSERT INTO blooms VALUES (?,?,?,?,?,?,?,?,?)',
+            (
+                cluster.centroid_id,
+                cluster.bloom_grid,
+                cluster.bloom_grid.col_k,
+                cluster.bloom_grid.row_k,
+                cluster.bloom_grid.grid_width,
+                cluster.bloom_grid.grid_height,
+                np.array(cluster.bloom_grid.bitarray, dtype=np.uint8).tobytes(),
+                np.array(cluster.bloom_grid.bitgrid, dtype=np.uint8).tobytes(),
+                np.array(cluster.bloom_grid.row_hashes, dtype=np.uint8).tobytes(),
+                np.array(cluster.bloom_grid.col_hashes, dtype=np.uint8).tobytes(),
+            )
+        )
+
+    cpdef build_and_store_bloom_grid(self, int centroid_id, int filter_len, npc.uint64_t[:, :] hashes, int sub_k):
+        cdef Cluster cluster = self.get_cluster(centroid_id, filter_len, hashes, sub_k)
+        self.store_bloom_grid(cluster)
+
+    cdef BloomGrid retrieve_bloom_grid(self, int centroid_id):
+        cdef int grid_width, grid_height, col_k, row_k
+        (
+            _,
+            col_k,
+            row_k,
+            grid_width,
+            grid_height,
+            raw_bitarray,
+            raw_bitgrid,
+            raw_row_hashes,
+            raw_col_hashes
+        ) = self.conn.execute(
+            'SELECT * FROM blooms WHERE centroid_id=?', (centroid_id,)
+        )
+        cdef npc.uint8_t[:] bitarray = np.frombuffer(raw_bitarray, dtype=np.uint8)
+        cdef npc.uint8_t[:, :] bitgrid = np.frombuffer(raw_bitgrid, dtype=np.uint8)
+        cdef npc.uint64_t[:, :] row_hashes = np.frombuffer(raw_row_hashes, dtype=np.uint64)
+        cdef npc.uint64_t[:, :] col_hashes = np.frombuffer(raw_col_hashes, dtype=np.uint64)
+        return BloomGrid(
+            col_k, row_k, grid_width, grid_height,
+            bitarray, bitgrid, row_hashes, col_hashes
+        )
 
     def py_add_point_to_cluster(self, npc.ndarray centroid, str kmer):
         cdef npc.uint8_t [:] binary_kmer = encode_kmer(kmer)
