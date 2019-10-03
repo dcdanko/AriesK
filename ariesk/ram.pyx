@@ -138,7 +138,7 @@ cdef class StatisticalRam:
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    def fast_add_kmers_from_fasta(self, str filename, num_to_add=0):
+    def fast_add_kmers_from_fasta(self, str filename):
         cdef FILE * cfile = fopen(filename.encode("UTF-8"), "rb")
         if cfile == NULL:
             raise FileNotFoundError(2, "No such file or directory: '%s'" % filename)
@@ -149,15 +149,15 @@ cdef class StatisticalRam:
         cdef ssize_t read
         cdef size_t n_kmers_in_line, i
         cdef npc.uint8_t[:] kmer
-        while (num_to_add <= 0) or (n_added < num_to_add):
+        while n_added < self.max_size:
             getline(&line, &l, cfile)  # header
             read = getdelim(&line, &l, b'>', cfile)  # read
             if read == -1: break
-            while (num_to_add <= 0) or (n_added < num_to_add):
+            while n_added < self.max_size:
                 if line[0] == '\n':
                     line += 1
                 kmer = encode_kmer_from_buffer(line, self.ramifier.k)
-                if (num_to_add > 0) and (n_added >= num_to_add):
+                if n_added >= self.max_size:
                     break
                 if kmer[self.ramifier.k - 1] > 3:
                     break
