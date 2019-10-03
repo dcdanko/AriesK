@@ -49,7 +49,10 @@ def calculate_pca_rotation_fasta(kmer_len, num_kmers, outfile, fasta_list):
     fasta_list = [line.strip() for line in fasta_list]
     with click.progressbar(fasta_list) as fastas:
         for fasta_filename in fastas:
-            stat_ram.fast_add_kmers_from_fasta(fasta_filename)
+            try:
+                stat_ram.fast_add_kmers_from_fasta(fasta_filename)
+            except IndexError:
+                break
     out = {
         'k': kmer_len,
         'center': stat_ram.get_centers().tolist(),
