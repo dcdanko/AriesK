@@ -1,4 +1,5 @@
 # cython: profile=True
+# cython: linetrace=True
 # cython: language_level=3
 
 cimport numpy as npc
