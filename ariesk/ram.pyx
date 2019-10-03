@@ -25,13 +25,15 @@ cdef class Ramifier:
     def __cinit__(self, k):
         self.k = k
         self.rs_matrix = build_rs_matrix(self.k)
+        self.kmer_matrix = np.zeros((self.k, 4), dtype=np.uint8)
 
     cdef npc.ndarray c_ramify(self, npc.uint8_t [::] binary_kmer):
-        cdef long [:, :] kmer_matrix = np.zeros((self.k, 4), dtype=int)
-        cdef int i
+        cdef int i, j
         for i in range(self.k):
-            kmer_matrix[i, binary_kmer[i]] = 1
-        cdef npc.ndarray rft = abs(np.dot(self.rs_matrix, kmer_matrix)).flatten()
+            for j in range(4):
+                self.kmer_matrix[i, j] = 0
+            self.kmer_matrix[i, binary_kmer[i]] = 1
+        cdef npc.ndarray rft = abs(np.dot(self.rs_matrix, self.kmer_matrix)).flatten()
         return rft
 
     def ramify(self, str kmer):
@@ -45,6 +47,7 @@ cdef class RotatingRamifier:
         self.k = k
         self.d = d
         self.rotation = rotation
+        self.d_rotation = rotation[:self.d, :]
         self.center = center
         self.scale = scale
         self.ramifier = Ramifier(self.k)
@@ -55,7 +58,7 @@ cdef class RotatingRamifier:
         cdef npc.ndarray centered = (rft - self.center)
         if self.use_scale:
             centered /= self.scale
-        return np.dot(self.rotation, centered)[:self.d]
+        return np.dot(self.d_rotation, centered)
 
     def ramify(self, str kmer):
         return self.c_ramify(encode_kmer(kmer))

@@ -83,5 +83,3 @@ class TestGridCoverDB(TestCase):
         self.assertEqual(len(members), 1)
         self.assertIn(KMER_31, [reverse_convert_kmer(member) for member in members])
         remove(DB_SAVE_TEMP_FILE)
-
-        

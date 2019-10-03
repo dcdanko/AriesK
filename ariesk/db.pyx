@@ -21,6 +21,16 @@ cdef simple_list(sql_cursor):
     return [el[0] for el in sql_cursor]
 
 
+cdef npc.uint64_t fnva(double[:] data):
+    cdef npc.uint64_t hval = 0xcbf29ce484222325
+    cdef int i
+    cdef max_int = 2 ** 4
+    for i in range(data.shape[0]):
+        hval = hval ^ (<npc.int64_t> data[i])
+        hval = hval * 0x100000001b3 % (max_int)
+    return hval
+
+
 cdef class GridCoverDB:
 
     def __cinit__(self, conn, ramifier=None, box_side_len=None, multithreaded=False):
@@ -35,7 +45,7 @@ cdef class GridCoverDB:
         self.kmer_insert_buffer = [None] * BUFFER_SIZE
         self.kmer_buffer_filled = 0
 
-        self.centroid_cache = {}  # note this is quite small and critical to build performance
+        self.centroid_cache = {}
         self.cluster_cache = {}
         if ramifier is None:
             self.ramifier = self.load_ramifier()
@@ -103,17 +113,18 @@ cdef class GridCoverDB:
         cdef npc.uint8_t [:] binary_kmer = encode_kmer(kmer)
         self.add_point_to_cluster(centroid, binary_kmer)
 
-    cdef add_point_to_cluster(self, double [:] centroid, npc.uint8_t [::] binary_kmer):
+    cdef add_point_to_cluster(self, double[:] centroid, npc.uint8_t [::] binary_kmer):
         """Store a new point in the db. centroid is not assumed to exist.
 
         Called often during build/merge
         """
         cdef int centroid_id
-        if tuple(centroid) in self.centroid_cache:
-            centroid_id = self.centroid_cache[tuple(centroid)]
+        cdef tuple centroid_key = tuple(centroid)
+        if centroid_key in self.centroid_cache:
+            centroid_id = self.centroid_cache[centroid_key]
         else:
-            centroid_id = len(self.centroid_cache)
-            self.centroid_cache[tuple(centroid)] = centroid_id
+            self.centroid_cache[centroid_key] = len(self.centroid_cache)
+            centroid_id = self.centroid_cache[centroid_key]
             self.centroid_insert_buffer[self.centroid_buffer_filled] = (
                 centroid_id, np.array(centroid, dtype=float).tobytes()
             )

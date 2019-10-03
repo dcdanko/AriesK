@@ -40,7 +40,10 @@ cdef class GridCoverBuilder:
         self.c_add_kmer(binary_kmer)
 
     cdef c_add_kmer(self, npc.uint8_t [:] binary_kmer):
-        cdef double [:] centroid_rft = np.floor(self.ramifier.c_ramify(binary_kmer) / self.db.box_side_len)
+        cdef double[:] centroid_rft = np.floor(
+            self.ramifier.c_ramify(binary_kmer) / self.db.box_side_len,
+            casting='safe'
+        )
         self.db.add_point_to_cluster(centroid_rft, binary_kmer)
         self.num_kmers_added += 1
 

@@ -104,12 +104,13 @@ def build_grid_cover_fasta(radius, dimension, threads, outfile, rotation, fasta_
     with click.progressbar(fasta_list) as fastas:
         for fasta_filename in fastas:
             n_added = grid.fast_add_kmers_from_fasta(fasta_filename)
+    n_centers = grid.db.centroids().shape[0]
     grid.close()
     add_time = time() - start
     click.echo(
         (
             f'Added {n_added:,} kmers to {outfile} in {add_time:.5}s. '
-            f'{grid.db.centroids().shape[0]:,} clusters.'
+            f'{n_centers:,} clusters.'
         ),
         err=True
     )

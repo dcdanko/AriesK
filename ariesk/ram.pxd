@@ -7,6 +7,7 @@ cdef class Ramifier:
     """Project k-mers into RFT space."""
     cdef public long k
     cdef public double [:, :] rs_matrix
+    cdef npc.uint8_t [:, :] kmer_matrix
 
     cdef npc.ndarray c_ramify(self, npc.uint8_t [::] binary_kmer)
 
@@ -17,6 +18,7 @@ cdef class RotatingRamifier:
     cdef public long k, d
     cdef public bint use_scale
     cdef public double [:, :] rotation
+    cdef public double [:, :] d_rotation
     cdef public double [:] center, scale
 
     cdef npc.ndarray c_ramify(self, npc.uint8_t [::] binary_kmer)
