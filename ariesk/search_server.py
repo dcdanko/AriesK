@@ -112,9 +112,13 @@ class SearchServer:
             ))
         except KeyError:
             max_filter_misses = None
+        outer_radius = int(msg.get(
+            'outer_radius',
+            self.param_picker.coarse_radius(msg['inner_radius'])
+        ))
         results = self.grid.py_search(
             msg['query'],
-            msg['outer_radius'],
+            outer_radius,
             max_filter_misses=max_filter_misses,
             inner_radius=msg['inner_radius'],
             inner_metric=msg['inner_metric'],
