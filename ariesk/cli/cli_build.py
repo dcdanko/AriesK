@@ -103,7 +103,7 @@ def build_grid_cover_fasta(radius, dimension, threads, outfile, rotation, fasta_
     start = time()
     with click.progressbar(fasta_list) as fastas:
         for fasta_filename in fastas:
-            n_added = grid.fast_add_kmers_from_fasta(fasta_filename, num_to_add=num_kmers)
+            n_added = grid.fast_add_kmers_from_fasta(fasta_filename)
     grid.close()
     add_time = time() - start
     click.echo(
