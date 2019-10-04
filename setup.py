@@ -31,6 +31,7 @@ extensions = [
         ('ariesk/grid_searcher.pyx', 'ariesk.grid_searcher'),
         ('ariesk/linear_searcher.pyx', 'ariesk.linear_searcher'),
         ('ariesk/db.pyx', 'ariesk.db'),
+        ('ariesk/pre_db.pyx', 'ariesk.pre_db'),
         ('ariesk/cluster.pyx', 'ariesk.cluster'),
         ('ariesk/ram.pyx', 'ariesk.ram'),
     ]

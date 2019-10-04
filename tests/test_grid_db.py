@@ -9,6 +9,7 @@ from os.path import join, dirname
 from unittest import TestCase
 
 from ariesk.db import GridCoverDB
+from ariesk.pre_db import PreDB
 from ariesk.ram import RotatingRamifier
 
 KMER_TABLE = join(dirname(__file__), 'small_31mer_table.csv')
@@ -34,6 +35,15 @@ class TestGridCoverDB(TestCase):
         members = db.py_get_cluster_members(0)
         self.assertEqual(len(members), 1)
         self.assertIn(KMER_31, [reverse_convert_kmer(member) for member in members])
+
+    def test_add_kmer_to_pre(self):
+        ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
+        db = PreDB(sqlite3.connect(':memory:'), ramifier=ramifier)
+        db.py_add_kmer(KMER_31)
+        db.commit()
+        members = list(db.conn.execute('SELECT * FROM kmers'))
+        self.assertEqual(len(members), 1)
+        self.assertIn(KMER_31, [reverse_convert_kmer(member[1]) for member in members])
 
     def test_merge_dbs(self):
         ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
