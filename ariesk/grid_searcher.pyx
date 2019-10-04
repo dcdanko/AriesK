@@ -4,7 +4,6 @@
 
 import numpy as np
 cimport numpy as npc
-
 from scipy.spatial import cKDTree
 
 from libc.math cimport ceil
