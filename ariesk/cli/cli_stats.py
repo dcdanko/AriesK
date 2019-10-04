@@ -43,11 +43,15 @@ def cli_dump_kmers(outfile, grid_cover):
 
 @stats_cli.command('dump-kmers')
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
+@click.option('-c/-k', '--cluster-ids/--kmers', defaul t=False)
 @click.argument('grid_cover', type=click.Path())
-def cli_dump_kmers(outfile, grid_cover):
+def cli_dump_kmers(outfile, cluster_ids, grid_cover):
     grid = GridCoverDB.load_from_filepath(grid_cover)
     for centroid_index, kmer in grid.get_kmers():
-        print(kmer, file=outfile)
+        if cluster_ids:
+            print(f'{centroid_index},{kmer}', file=outfile)
+        else:
+            print(kmer, file=outfile)
 
 
 @stats_cli.command('dump-centroids')
