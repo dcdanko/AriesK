@@ -43,7 +43,7 @@ def cli_dump_kmers(outfile, grid_cover):
 
 @stats_cli.command('dump-kmers')
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
-@click.option('-c/-k', '--cluster-ids/--kmers', defaul t=False)
+@click.option('-c/-k', '--cluster-ids/--kmers', default=False)
 @click.argument('grid_cover', type=click.Path())
 def cli_dump_kmers(outfile, cluster_ids, grid_cover):
     grid = GridCoverDB.load_from_filepath(grid_cover)
