@@ -166,10 +166,13 @@ cdef class GridCoverSearcher:
         cdef int i, j
         cdef int added = 0
         cdef npc.uint8_t bound = <npc.uint8_t> ceil(inner_radius * query_kmer.shape[0])
+        cdef double[:] dists 
+        if inner_metric == 'needle':
+            dists = cluster.search_cluster(query_kmer, bound, score)
         cdef double inner = 100 * self.ramifier.k  # big value that will be larger than inner rad
         for i in range(cluster.seqs.shape[0]):
             if inner_metric == 'needle':  # and cluster.test_seq(i, row_hits):
-                inner = bounded_needle_fast(query_kmer, cluster.seqs[i, :], bound, True, score)
+                inner = dists[i]
             elif inner_metric == 'hamming':
                 inner = hamming_dist(query_kmer, cluster.seqs[i, :], True)
             if inner_metric == 'none' or inner <= inner_radius:

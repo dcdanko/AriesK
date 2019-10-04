@@ -99,15 +99,3 @@ class TestUtils(TestCase):
         union = bf1.union(bf2)
         self.assertGreaterEqual(union, 290)
         self.assertLessEqual(union, 410)
-
-    def test_cluster_membership(self):
-        sub_k, k = 7, 31
-        seqs = [random_kmer(k) for _ in range(100)]
-        clust = Cluster.build_from_seqs(0, seqs, sub_k)
-        clust.bloom_grid = BloomGrid.build_from_probs(k, sub_k, 4, 1, 500, 0.01)
-        for i in range(len(seqs)):
-            clust.bloom_grid.py_add(seqs[i])
-        self.assertEqual(clust.py_count_membership(seqs[0]), k - sub_k + 1)
-        self.assertLess(clust.py_count_membership(random_kmer(k)), k - sub_k + 1)
-        self.assertTrue(clust.py_test_membership(seqs[0], 0))
-        self.assertFalse(clust.py_test_membership(random_kmer(k), 0))

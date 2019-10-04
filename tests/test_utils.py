@@ -11,6 +11,7 @@ from ariesk.utils.kmers import (
     py_decode_kmer,
     py_needle,
     py_needle_fast,
+    py_bounded_needle_fast,
 )
 from ariesk.linear_searcher import LinearSearcher
 
@@ -56,6 +57,20 @@ class TestUtils(TestCase):
             'TTCGATCGATCGATCGATCGATCGATCGATCG'
         )
         self.assertEqual(all_dists['hamming'], 1)
+
+    def test_needle_equal(self):
+        kmers = [KMER_31, KMER_31]
+        needle = py_needle(kmers, normalize=False)
+        for k1, k2, dist in needle:
+            self.assertEqual(dist, 0)
+
+    def test_bounded_needle_equal_r1(self):
+        dist = py_bounded_needle_fast(KMER_31, KMER_31, 1, normalize=False)
+        self.assertEqual(dist, 0)
+
+    def test_bounded_needle_equal_r0(self):
+        dist = py_bounded_needle_fast(KMER_31, KMER_31, 0, normalize=False)
+        self.assertEqual(dist, 0)
 
     def test_needle(self):
         kmers = [KMER_31, MIS, GAP]
