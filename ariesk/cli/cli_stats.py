@@ -29,6 +29,18 @@ def cli_dump_kmers(grid_cover):
     click.echo(f'dims\t{dims}')
 
 
+@stats_cli.command('cluster-sizes')
+@click.option('-o', '--outfile', default='-', type=click.File('w'))
+@click.argument('grid_cover', type=click.Path())
+def cli_dump_kmers(outfile, grid_cover):
+    grid = GridCoverDB.load_from_filepath(grid_cover)
+    counts = {}
+    for centroid_index, _ in grid.get_kmers():
+        counts[centroid_index] = 1 + counts.get(centroid_index, 0)
+    for centroid_index, count in counts.items():
+        print(f'{centroid_index},{count}', file=outfile)
+
+
 @stats_cli.command('dump-kmers')
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
 @click.argument('grid_cover', type=click.Path())
