@@ -16,12 +16,12 @@ cdef npc.uint32_t fast_modulo(npc.uint32_t val, npc.uint64_t N, npc.uint32_t shi
 
 
 cdef npc.uint32_t fnva(npc.uint8_t[:] data, npc.uint64_t[:] access_order):
-    cdef npc.uint32_t hval = 0xcbf29ce484222325
+    cdef npc.uint32_t hval = 0x811c9dc5
     cdef int i
     cdef npc.uint64_t max_int = 2 ** 32
     for i in access_order:
         hval = hval ^ data[i]
-        hval = fast_modulo(hval * 0x100000001b3, max_int, 32)
+        hval = fast_modulo(hval * 0x01000193, max_int, 32)
     return hval
 
 
