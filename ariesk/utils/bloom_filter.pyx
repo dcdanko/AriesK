@@ -12,7 +12,7 @@ from ariesk.utils.kmers cimport encode_kmer, decode_kmer
 
 cdef npc.uint32_t fast_modulo(npc.uint32_t val, npc.uint64_t N, npc.uint32_t shift):
     """Technically not a modulo but serve the same purpose faster."""
-    return <npc.uint32_t> ((<npc.uint64_t> val) * N) >> shift
+    return <npc.uint32_t> ((<npc.uint64_t> val) * N) >> (64 - shift)
 
 
 cdef npc.uint32_t fnva(npc.uint8_t[:] data, npc.uint64_t[:] access_order):
