@@ -10,13 +10,18 @@ from libc.math cimport log, floor, ceil, log2
 from ariesk.utils.kmers cimport encode_kmer, decode_kmer
 
 
-cdef npc.uint64_t fnva(npc.uint8_t[:] data, npc.uint64_t[:] access_order):
-    cdef npc.uint64_t hval = 0xcbf29ce484222325
+cdef npc.uint32_t fast_modulo(npc.uint32_t val, npc.uint64_t N, npc.uint32_t shift):
+    """Technically not a modulo but serve the same purpose faster."""
+    return ((<npc.uint64_t> val) * N) >> shift
+
+
+cdef npc.uint32_t fnva(npc.uint8_t[:] data, npc.uint64_t[:] access_order):
+    cdef npc.uint32_t hval = 0xcbf29ce484222325
     cdef int i
-    cdef max_int = 2 ** 64
+    cdef npc.uint64_t max_int = 2 ** 32
     for i in access_order:
         hval = hval ^ data[i]
-        hval = hval * 0x100000001b3 % (max_int)
+        hval = fast_modulo(hval * 0x100000001b3, max_int, 32)
     return hval
 
 
@@ -26,8 +31,11 @@ cdef class BloomFilter:
         self.p = -1.0
         self.len_seq = k
         self.n_elements = 0
-
-        self.len_filter = filter_len
+        for i in range(100):
+            if (2 ** i) >= filter_len:
+                self.len_filter = 2 ** i
+                self.filter_power = i
+                break
         self.bitarray = np.zeros((self.len_filter,), dtype=np.uint8)
 
         self.n_hashes = hashes.shape[0]
@@ -42,19 +50,19 @@ cdef class BloomFilter:
     cdef add(self, npc.uint8_t[:] seq):
         self.n_elements += 1
         cdef int i
-        cdef npc.uint64_t hval
+        cdef npc.uint32_t hval
         for i in range(self.n_hashes):
-            hval = fnva(seq, self.hashes[i, :]) 
-            hval = hval % self.len_filter
+            hval = fnva(seq, self.hashes[i, :])
+            hval = fast_modulo(hval, self.len_filter, self.filter_power)
             self.bitarray[hval] = 1
 
     cdef bint contains(self, npc.uint8_t[:] seq):
         cdef int hashes_hit = 0
         cdef int i
-        cdef npc.uint64_t hval
+        cdef npc.uint32_t hval
         for i in range(self.n_hashes):
             hval = fnva(seq, self.hashes[i, :])
-            hval = hval % self.len_filter
+            hval = fast_modulo(hval, self.len_filter, self.filter_power)
             hashes_hit += self.bitarray[hval]
         return hashes_hit == self.n_hashes
 
@@ -95,7 +103,11 @@ cdef class BloomGrid:
 
     def __cinit__(self, int col_k, int row_k, int grid_width, int grid_height,
                   npc.uint64_t[:, :] row_hashes, npc.uint64_t[:, :] col_hashes):
-        self.grid_width = grid_width
+        for i in range(100):
+            if (2 ** i) >= grid_width:
+                self.grid_width = 2 ** i
+                self.grid_width_power = i
+                break
         self.grid_height = grid_height
         self.col_k = col_k
         self.row_k = row_k
@@ -118,7 +130,11 @@ cdef class BloomGrid:
             row_hvals[j] = fnva(seq, self.row_hashes[j, :]) % self.grid_height
         for i in range(self.row_k - self.col_k + 1):
             for j in range(self.col_hashes.shape[0]):
-                col_hval = fnva(seq[i:i + self.col_k], self.col_hashes[j, :]) % self.grid_width
+                col_hval = fast_modulo(
+                    fnva(seq[i:i + self.col_k], self.col_hashes[j, :]),
+                    self.grid_width,
+                    self.grid_width_power
+                )
                 self.bitarray[col_hval] = 1
                 for j in range(self.row_hashes.shape[0]):
                     self.bitgrid[row_hvals[j], col_hval] = 1
@@ -127,7 +143,11 @@ cdef class BloomGrid:
         cdef int i
         cdef npc.uint64_t[:] hash_vals = np.ndarray((self.col_hashes.shape[0],), dtype=np.uint64)
         for i in range(self.col_hashes.shape[0]):
-            hash_vals[i] = fnva(seq, self.col_hashes[i, :]) % self.grid_width
+            hash_vals[i] = fast_modulo(
+                fnva(seq, self.col_hashes[i, :]),
+                self.grid_width,
+                self.grid_width_power
+            )
         return hash_vals
 
     def py_array_contains(self, str seq):
@@ -173,11 +193,11 @@ cdef class BloomGrid:
         Takes a full length seq as input."""
         cdef npc.uint64_t[:] row_hash_vals
         cdef npc.uint64_t[:, :] hash_vals = np.ndarray(
-            (seq.shape[0] -  self.col_k + 1, self.col_hashes.shape[0]),
+            (seq.shape[0] - self.col_k + 1, self.col_hashes.shape[0]),
             dtype=np.uint64
         )
         cdef int i, j
-        for i in range(seq.shape[0] -  self.col_k + 1):
+        for i in range(seq.shape[0] - self.col_k + 1):
             row_hash_vals = self._get_hashes(seq[i:i + self.col_k])
             for j in range(self.col_hashes.shape[0]):
                 hash_vals[i, j] = row_hash_vals[j]
