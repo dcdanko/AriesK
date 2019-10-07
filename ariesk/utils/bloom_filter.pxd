@@ -3,7 +3,7 @@
 import numpy as np
 cimport numpy as npc
 
-cdef npc.uint32_t fast_modulo(npc.uint32_t val, npc.uint64_t N, npc.uint32_t shift)
+cdef npc.uint32_t fast_modulo(npc.uint32_t val, npc.uint64_t N)
 cdef npc.uint32_t fnva(npc.uint8_t[:] data, npc.uint64_t[:] access_order)
 
 

@@ -9,19 +9,40 @@ from libc.math cimport log, floor, ceil, log2
 
 from ariesk.utils.kmers cimport encode_kmer, decode_kmer
 
+cdef npc.uint64_t MAX_INT_32 = 2 ** 32
+
+
+def py_fast_modulo(int val, int N):
+    """The 2x is necessary becaus eof sign conversion in python.
+
+    I checked that ordinarily fast_module does hit the upper half
+    of the range.
+    """
+    cdef npc.uint32_t modded = fast_modulo(val, 2 * N)
+    return modded
+
+
+cdef npc.uint32_t fast_modulo(npc.uint32_t val, npc.uint64_t N):
+    """Technically not a modulo but serve the same purpose faster.
+
+    N.B. This is ONLY useful if val is pseudo-random. For sequential
+    numbers it will likely produce the same value. 
+    """
+    cdef npc.uint64_t val64 = <npc.uint64_t> val
+    cdef npc.uint32_t shifted = (val * N) >> 32
+    return shifted
+'''
 
 cdef npc.uint32_t fast_modulo(npc.uint32_t val, npc.uint64_t N, npc.uint32_t shift):
-    """Technically not a modulo but serve the same purpose faster."""
-    return <npc.uint32_t> ((<npc.uint64_t> val) * N) >> (64 - shift)
-
+    return val % N
+'''
 
 cdef npc.uint32_t fnva(npc.uint8_t[:] data, npc.uint64_t[:] access_order):
     cdef npc.uint32_t hval = 0x811c9dc5
     cdef int i
-    cdef npc.uint64_t max_int = 2 ** 32
     for i in access_order:
         hval = hval ^ data[i]
-        hval = fast_modulo(hval * 0x01000193, max_int, 32)
+        hval = fast_modulo(hval * 0x01000193, MAX_INT_32)
     return hval
 
 
@@ -53,7 +74,7 @@ cdef class BloomFilter:
         cdef npc.uint32_t hval
         for i in range(self.n_hashes):
             hval = fnva(seq, self.hashes[i, :])
-            hval = fast_modulo(hval, self.len_filter, self.filter_power)
+            hval = fast_modulo(hval, self.len_filter)
             self.bitarray[hval] = 1
 
     cdef bint contains(self, npc.uint8_t[:] seq):
@@ -62,7 +83,7 @@ cdef class BloomFilter:
         cdef npc.uint32_t hval
         for i in range(self.n_hashes):
             hval = fnva(seq, self.hashes[i, :])
-            hval = fast_modulo(hval, self.len_filter, self.filter_power)
+            hval = fast_modulo(hval, self.len_filter)
             hashes_hit += self.bitarray[hval]
         return hashes_hit == self.n_hashes
 
@@ -81,7 +102,7 @@ cdef class BloomFilter:
             if (self.bitarray[i] > 0) or (other.bitarray[i] > 0):
                 bitunion += 1
         cdef int size_union = <int> ceil(
-            (-self.len_filter / self.n_hashes) * log(1 - (bitunion / self.len_filter))
+            (-(<int> self.len_filter) / self.n_hashes) * log(1 - (bitunion / self.len_filter))
         )
         return size_union
 
@@ -132,8 +153,7 @@ cdef class BloomGrid:
             for j in range(self.col_hashes.shape[0]):
                 col_hval = fast_modulo(
                     fnva(seq[i:i + self.col_k], self.col_hashes[j, :]),
-                    self.grid_width,
-                    self.grid_width_power
+                    self.grid_width
                 )
                 self.bitarray[col_hval] = 1
                 for j in range(self.row_hashes.shape[0]):
@@ -145,8 +165,7 @@ cdef class BloomGrid:
         for i in range(self.col_hashes.shape[0]):
             hash_vals[i] = fast_modulo(
                 fnva(seq, self.col_hashes[i, :]),
-                self.grid_width,
-                self.grid_width_power
+                self.grid_width
             )
         return hash_vals
 

@@ -3,7 +3,7 @@ import random
 import numpy as np
 from unittest import TestCase
 
-from ariesk.utils.bloom_filter import BloomFilter, BloomGrid
+from ariesk.utils.bloom_filter import BloomFilter, BloomGrid, py_fast_modulo
 from ariesk.cluster import Cluster
 
 KMER_31 = 'ATCGATCGATCGATCGATCGATCGATCGATCG'
@@ -14,6 +14,24 @@ def random_kmer(k):
 
 
 class TestUtils(TestCase):
+
+    def test_modulo_deterministic(self):
+        mod, mod_pow = 8, 3
+        for i in list(range(1000)) + [(2 ** 31) - 1]:
+            modded = py_fast_modulo(i, mod)
+            self.assertLessEqual(modded, mod)
+
+    def test_modulo_distribution(self):
+        mod, mod_pow = 8, 3
+        mod_vals = {}
+        n_vals = mod * 10000
+        for i in list(range(n_vals)):
+            hash_i = abs(hash(str(i))) % (2 ** 31 - 1)
+            modded = py_fast_modulo(hash_i, mod)
+            mod_vals[modded] = 1 + mod_vals.get(modded, 0)
+        self.assertEqual(len(mod_vals), mod)
+        self.assertGreaterEqual(min(mod_vals.values()), n_vals / (mod * 2))
+        self.assertLessEqual(max(mod_vals.values()), n_vals / (mod / 2))
 
     def test_add_to_bloom_grid(self):
         k, sub_k = 31, 6
