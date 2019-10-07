@@ -13,6 +13,7 @@ from libc.stdlib cimport malloc, free
 from ariesk.utils.kmers cimport encode_kmer, encode_kmer_from_buffer
 from ariesk.ram cimport RotatingRamifier
 from ariesk.db cimport GridCoverDB
+from ariesk.pre_db import PreDB
 
 
 cdef class GridCoverBuilder:
@@ -138,6 +139,35 @@ cdef class GridCoverBuilder:
                          # `pointer being realloacted was not allocated`
         fclose(cfile)
         return n_added
+
+    @classmethod
+    def build_from_predb(cls, filepath, predb, box_side_len):
+        db = GridCoverDB(
+            sqlite3.connect(filepath),
+            ramifier=predb.ramifier,
+            box_side_len=box_side_len
+        )
+        out = cls(db)
+        out.add_kmers_from_predb(predb)
+        return out
+
+    def add_kmers_from_predb(self, predb):
+        cdef const npc.uint8_t[:] rft_blob
+        cdef const npc.uint8_t[:] seq_blob
+        cdef double[:] centroid_rft
+        cdef const double[:] rft
+        cdef const npc.uint8_t[:] kmer
+        cdef npc.uint8_t[:] kmer2 = np.ndarray((self.ramifier.k,), np.uint8)
+        for rft_blob, seq_blob in predb.conn.execute('SELECT * FROM kmers'):
+            print(rft_blob)
+            print(seq_blob)
+            rft = np.frombuffer(rft_blob, dtype=float, count=self.ramifier.d)
+            kmer = np.frombuffer(seq_blob, dtype=np.uint8)
+            for i in range(kmer.shape[0]):
+                kmer2[i] = kmer[i]
+            centroid_rft = np.floor(np.array(rft) / self.db.box_side_len)
+            self.db.add_point_to_cluster(centroid_rft, kmer2)
+            self.num_kmers_added += 1
 
     @classmethod
     def from_filepath(cls, filepath, ramifier, box_side_len):

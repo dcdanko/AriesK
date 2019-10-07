@@ -29,7 +29,7 @@ cdef class GridCoverDB:
     cdef Cluster get_cluster(self, int centroid_id, int filter_len, npc.uint64_t[:, :] hashes, int sub_k)
     cdef store_bloom_grid(self, Cluster cluster)
     cpdef build_and_store_bloom_grid(self, int centroid_id, int filter_len, npc.uint64_t[:, :] hashes, int sub_k)
-    cdef BloomGrid retrieve_bloom_grid(self, int centroid_id)
+    cpdef BloomGrid retrieve_bloom_grid(self, int centroid_id)
     cdef add_point_to_cluster(self, double[:] centroid, npc.uint8_t [::] kmer)
     cpdef load_other(self, GridCoverDB other)
     cdef double [:, :] c_get_centroids(self)

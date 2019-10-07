@@ -132,7 +132,7 @@ cdef class Cluster:
         cdef int min_hits = self.seqs.shape[1] - self.sub_k + 1 - (self.sub_k * allowed_misses)
         return n_hits >= min_hits
 
-    cdef int count_membership_hvals(self, npc.uint64_t[:, :] hash_vals):
+    cdef int count_membership_hvals(self, npc.uint32_t[:, :] hash_vals):
         cdef int i
         cdef int n_hits = 0
         for i in range(hash_vals.shape[0]):
@@ -140,12 +140,12 @@ cdef class Cluster:
                 n_hits += 1
         return n_hits
 
-    cdef bint test_membership_hvals(self, npc.uint64_t[:, :] hash_vals, int allowed_misses):
+    cdef bint test_membership_hvals(self, npc.uint32_t[:, :] hash_vals, int allowed_misses):
         cdef int n_hits = self.count_membership_hvals(hash_vals)
         cdef int min_hits = self.seqs.shape[1] - self.sub_k + 1 - (self.sub_k * allowed_misses)
         return n_hits >= min_hits
 
-    cdef npc.uint8_t[:] test_row_membership(self, npc.uint64_t[:, :] hash_vals, int allowed_misses):
+    cdef npc.uint8_t[:] test_row_membership(self, npc.uint32_t[:, :] hash_vals, int allowed_misses):
         cdef int min_hits = self.seqs.shape[1] - self.sub_k + 1 - (self.sub_k * allowed_misses)
         cdef npc.uint8_t[:] row_counts = self.bloom_grid.count_grid_contains_hvals(hash_vals)
         for i in range(self.bloom_grid.grid_height):

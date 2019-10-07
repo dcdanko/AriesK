@@ -9,6 +9,7 @@ from os.path import join, dirname
 from unittest import TestCase
 
 from ariesk.db import GridCoverDB
+from ariesk.grid_searcher import GridCoverSearcher
 from ariesk.pre_db import PreDB
 from ariesk.ram import RotatingRamifier
 
@@ -72,6 +73,23 @@ class TestGridCoverDB(TestCase):
         db.commit()
         centroids = db.centroids()
         self.assertEqual(centroids.shape, (2, 4))
+
+    def test_pre_build_blooms(self):
+        ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
+        db = GridCoverDB(sqlite3.connect(':memory:'), ramifier=ramifier, box_side_len=0.5)
+        db.py_add_point_to_cluster(np.array([0., 0., 0., 0.]), KMER_30 + 'A')
+        db.py_add_point_to_cluster(np.array([0., 0., 0., 0.]), KMER_30 + 'T')
+        db.py_add_point_to_cluster(np.array([1., 0., 0., 0.]), KMER_30 + 'C')
+        db.commit()
+        searcher = GridCoverSearcher(db)
+        for centroid_id in [0, 1]:
+            db.build_and_store_bloom_grid(
+                centroid_id, searcher.array_size, searcher.hash_functions, searcher.sub_k
+            )
+        cluster_0 = db.retrieve_bloom_grid(0)
+        cluster_1 = db.retrieve_bloom_grid(1)
+        self.assertEqual(cluster_0.n_seqs, 2)
+        self.assertEqual(cluster_1.n_seqs, 1)
 
     def test_save(self):
         DB_SAVE_TEMP_FILE = join(dirname(__file__), 'temp.db_save_temp.sqlite')

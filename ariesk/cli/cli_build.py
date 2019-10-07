@@ -146,6 +146,54 @@ def build_grid_cover_fasta(radius, dimension, threads, outfile, rotation, fasta_
     )
 
 
+@build_cli.command('grid-from-pre')
+@click.option('-r', '--radius', default=0.02, type=float)
+@click.option('-d', '--dimension', default=8)
+@click.option('-t', '--threads', default=1)
+@click.option('-o', '--outfile', default='ariesk_grid_cover_db.sqlite', type=click.Path())
+@click.argument('predb_list', type=click.File('r'))
+def build_grid_cover_fasta(radius, dimension, threads, outfile, predb_list):
+    environ['OPENBLAS_NUM_THREADS'] = f'{threads}'  # numpy uses one of these two libraries
+    environ['MKL_NUM_THREADS'] = f'{threads}'
+    predb_list = [line.strip() for line in predb_list]
+    start = time()
+    predb = PreDB.load_from_filepath(predb_list[0])
+    grid = GridCoverBuilder.build_from_predb(outfile, predb, radius)
+    with click.progressbar(predb_list) as predbs:
+        for i, predb_filename in enumerate(predbs):
+            if i == 0:
+                continue
+            predb = PreDB.load_from_filepath(predb_filename)
+            n_added = grid.add_kmers_from_predb(predb)
+    n_centers = grid.db.centroids().shape[0]
+    grid.close()
+    add_time = time() - start
+    click.echo(
+        (
+            f'Added {n_added:,} kmers to {outfile} in {add_time:.5}s. '
+            f'{n_centers:,} clusters.'
+        ),
+        err=True
+    )
+
+
+@build_cli.command('prebuild-blooms')
+@click.argument('grid_db', type=click.Path())
+def build_grid_cover(grid_db):
+    db = GridCoverDB.load_from_filepath(grid_db)
+    searcher = GridCoverSearcher(db)
+    start = time()
+    n_centers = db.centroids().shape[0]
+    with click.progressbar(list(range(n_centers))) as centroid_ids:
+        for centroid_id in centroid_ids:
+            db.build_and_store_bloom_grid(
+                centroid_id, searcher.array_size, searcher.hash_functions, searcher.sub_k
+            )
+    db.close()
+    add_time = time() - start
+    click.echo(f'Built {n_centers} bloom filters in {add_time:.5}s.', err=True)
+
+
 @build_cli.command('grid-parallel')
 @click.option('-r', '--radius', default=0.02, type=float)
 @click.option('-d', '--dimension', default=8)

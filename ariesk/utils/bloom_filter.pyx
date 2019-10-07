@@ -87,7 +87,7 @@ cdef class BloomFilter:
             hashes_hit += self.bitarray[hval]
         return hashes_hit == self.n_hashes
 
-    cdef bint contains_hvals(self, npc.uint64_t[:] hvals):
+    cdef bint contains_hvals(self, npc.uint32_t[:] hvals):
         cdef int hashes_hit = 0
         cdef int i
         for i in range(hvals.shape[0]):
@@ -159,9 +159,9 @@ cdef class BloomGrid:
                 for j in range(self.row_hashes.shape[0]):
                     self.bitgrid[row_hvals[j], col_hval] = 1
 
-    cdef npc.uint64_t[:] _get_hashes(self, npc.uint8_t[:] seq):
+    cdef npc.uint32_t[:] _get_hashes(self, npc.uint8_t[:] seq):
         cdef int i
-        cdef npc.uint64_t[:] hash_vals = np.ndarray((self.col_hashes.shape[0],), dtype=np.uint64)
+        cdef npc.uint32_t[:] hash_vals = np.ndarray((self.col_hashes.shape[0],), dtype=np.uint32)
         for i in range(self.col_hashes.shape[0]):
             hash_vals[i] = fast_modulo(
                 fnva(seq, self.col_hashes[i, :]),
@@ -173,10 +173,10 @@ cdef class BloomGrid:
         return self.array_contains(encode_kmer(seq))     
 
     cdef bint array_contains(self, npc.uint8_t[:] seq):
-        cdef npc.uint64_t[:] hash_vals = self._get_hashes(seq)
+        cdef npc.uint32_t[:] hash_vals = self._get_hashes(seq)
         return self.array_contains_hvals(hash_vals)
 
-    cdef bint array_contains_hvals(self, npc.uint64_t[:] hvals):
+    cdef bint array_contains_hvals(self, npc.uint32_t[:] hvals):
         assert hvals.shape[0] == self.col_hashes.shape[0]
         cdef int hashes_hit = 0
         cdef int i
@@ -189,10 +189,10 @@ cdef class BloomGrid:
 
     cdef npc.uint8_t[:] grid_contains(self, npc.uint8_t[:] seq):
         """Return a vector of 1/0 based on whether a row contains a given sub-kmer."""
-        cdef npc.uint64_t[:] hash_vals = self._get_hashes(seq)
+        cdef npc.uint32_t[:] hash_vals = self._get_hashes(seq)
         return self.grid_contains_hvals(hash_vals)
 
-    cdef npc.uint8_t[:] grid_contains_hvals(self, npc.uint64_t[:] hvals):
+    cdef npc.uint8_t[:] grid_contains_hvals(self, npc.uint32_t[:] hvals):
         cdef npc.uint8_t[:] rows_hit = np.ndarray((self.grid_height,), dtype=np.uint8)
         cdef int hashes_hit
         cdef int i, j
@@ -210,10 +210,10 @@ cdef class BloomGrid:
         """Return a vector counting the number of sub_kmers that hit each row.
 
         Takes a full length seq as input."""
-        cdef npc.uint64_t[:] row_hash_vals
-        cdef npc.uint64_t[:, :] hash_vals = np.ndarray(
+        cdef npc.uint32_t[:] row_hash_vals
+        cdef npc.uint32_t[:, :] hash_vals = np.ndarray(
             (seq.shape[0] - self.col_k + 1, self.col_hashes.shape[0]),
-            dtype=np.uint64
+            dtype=np.uint32
         )
         cdef int i, j
         for i in range(seq.shape[0] - self.col_k + 1):
@@ -222,7 +222,7 @@ cdef class BloomGrid:
                 hash_vals[i, j] = row_hash_vals[j]
         return self.count_grid_contains_hvals(hash_vals)
 
-    cdef  npc.uint8_t[:] count_grid_contains_hvals(self, npc.uint64_t[:, :] hvals):
+    cdef  npc.uint8_t[:] count_grid_contains_hvals(self, npc.uint32_t[:, :] hvals):
         """Return a numpy array with the number of sub-kmers hit per row in grid.
 
         hvals is a matrix of (sub_kmers, num_hashes)

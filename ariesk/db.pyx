@@ -126,7 +126,6 @@ cdef class GridCoverDB:
             'INSERT INTO blooms VALUES (?,?,?,?,?,?,?,?,?)',
             (
                 cluster.centroid_id,
-                cluster.bloom_grid,
                 cluster.bloom_grid.col_k,
                 cluster.bloom_grid.row_k,
                 cluster.bloom_grid.grid_width,
@@ -142,25 +141,24 @@ cdef class GridCoverDB:
         cdef Cluster cluster = self.get_cluster(centroid_id, filter_len, hashes, sub_k)
         self.store_bloom_grid(cluster)
 
-    cdef BloomGrid retrieve_bloom_grid(self, int centroid_id):
+    cpdef BloomGrid retrieve_bloom_grid(self, int centroid_id):
         cdef int grid_width, grid_height, col_k, row_k
-        (
-            _,
-            col_k,
-            row_k,
-            grid_width,
-            grid_height,
-            raw_bitarray,
-            raw_bitgrid,
-            raw_row_hashes,
-            raw_col_hashes
-        ) = self.conn.execute(
+        packed = list(self.conn.execute(
             'SELECT * FROM blooms WHERE centroid_id=?', (centroid_id,)
-        )
-        cdef npc.uint8_t[:] bitarray = np.frombuffer(raw_bitarray, dtype=np.uint8)
-        cdef npc.uint8_t[:, :] bitgrid = np.frombuffer(raw_bitgrid, dtype=np.uint8)
-        cdef npc.uint64_t[:, :] row_hashes = np.frombuffer(raw_row_hashes, dtype=np.uint64)
-        cdef npc.uint64_t[:, :] col_hashes = np.frombuffer(raw_col_hashes, dtype=np.uint64)
+        ))[0]
+        col_k = packed[1]
+        row_k = packed[2]
+        grid_width = packed[3]
+        grid_height = packed[4]
+        cdef const npc.uint8_t[:] raw_bitarray   = packed[5]
+        cdef const npc.uint8_t[:] raw_bitgrid    = packed[6]
+        cdef const npc.uint8_t[:] raw_row_hashes = packed[7]
+        cdef const npc.uint8_t[:] raw_col_hashes = packed[8]
+        cdef const npc.uint8_t[:] bitarray = np.frombuffer(raw_bitarray, dtype=np.uint8)
+        cdef const npc.uint8_t[:, :] bitgrid = np.reshape(np.frombuffer(raw_bitgrid, dtype=np.uint8), (grid_height, grid_width))
+        print(np.array(bitgrid))
+        cdef const npc.uint64_t[:, :] row_hashes = np.frombuffer(raw_row_hashes, dtype=np.uint64)
+        cdef const npc.uint64_t[:, :] col_hashes = np.frombuffer(raw_col_hashes, dtype=np.uint64)
         return BloomGrid(
             col_k, row_k, grid_width, grid_height,
             bitarray, bitgrid, row_hashes, col_hashes

@@ -10,7 +10,7 @@ from libc.math cimport ceil
 from ariesk.ram cimport RotatingRamifier
 from ariesk.db cimport GridCoverDB
 from ariesk.cluster cimport Cluster
-from ariesk.utils.bloom_filter cimport fnva
+from ariesk.utils.bloom_filter cimport fnva, fast_modulo
 from ariesk.utils.kmers cimport (
     encode_kmer,
     decode_kmer,
@@ -47,7 +47,7 @@ cdef class GridCoverSearcher:
         self.logging = False
         self.sub_k = 7
         self.n_hashes = 8
-        self.array_size = 1000
+        self.array_size = 2 ** 10  # must be a power of 2
         self._pre_compute_hashes()
 
     cdef _pre_compute_hashes(self):
@@ -123,7 +123,7 @@ cdef class GridCoverSearcher:
         self,
         npc.uint8_t[:] binary_kmer,
         list centers,
-        npc.uint64_t[:, :] hash_vals,
+        npc.uint32_t[:, :] hash_vals,
         int max_misses,
         double inner_radius=0.2,
         double eps=1.01,
@@ -182,6 +182,17 @@ cdef class GridCoverSearcher:
         out = out[0:added, :]
         return out
 
+    cdef npc.uint32_t[:, :] compute_hashes_for_seq(self, npc.uint8_t[:] seq):
+        cdef npc.uint32_t[:, :] hash_vals = np.ndarray(
+            (seq.shape[0] - self.sub_k + 1, self.n_hashes), dtype=np.uint32
+        )
+        cdef int i, j
+        for i in range(seq.shape[0] - self.sub_k + 1):
+            for j in range(self.n_hashes):
+                hash_vals[i, j] = fnva(seq[i:i + self.sub_k], self.hash_functions[j, :])
+                hash_vals[i, j] = fast_modulo(hash_vals[i, j], self.array_size)
+        return hash_vals
+
     cdef npc.uint8_t[:, :] search(
         self,
         npc.uint8_t[:] binary_kmer,
@@ -201,13 +212,7 @@ cdef class GridCoverSearcher:
 
         # Filtering
         cdef int i = 0
-        cdef npc.uint64_t[:, :] hash_vals = np.ndarray(
-            (binary_kmer.shape[0] - self.sub_k + 1, self.n_hashes), dtype=np.uint64
-        )
-        for i in range(binary_kmer.shape[0] - self.sub_k + 1):
-            for j in range(self.n_hashes):
-                hash_vals[i, j] = fnva(binary_kmer[i:i + self.sub_k], self.hash_functions[j, :])
-                hash_vals[i, j] = hash_vals[i, j] % self.array_size
+        cdef npc.uint32_t[:, :] hash_vals = self.compute_hashes_for_seq(binary_kmer)
         cdef npc.uint8_t[:] filtered_centers = self._filter_search(
             binary_kmer,
             centers,
