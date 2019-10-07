@@ -159,8 +159,6 @@ cdef class GridCoverBuilder:
         cdef const npc.uint8_t[:] kmer
         cdef npc.uint8_t[:] kmer2 = np.ndarray((self.ramifier.k,), np.uint8)
         for rft_blob, seq_blob in predb.conn.execute('SELECT * FROM kmers'):
-            print(rft_blob)
-            print(seq_blob)
             rft = np.frombuffer(rft_blob, dtype=float, count=self.ramifier.d)
             kmer = np.frombuffer(seq_blob, dtype=np.uint8)
             for i in range(kmer.shape[0]):

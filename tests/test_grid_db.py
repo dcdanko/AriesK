@@ -86,10 +86,10 @@ class TestGridCoverDB(TestCase):
             db.build_and_store_bloom_grid(
                 centroid_id, searcher.array_size, searcher.hash_functions, searcher.sub_k
             )
-        cluster_0 = db.retrieve_bloom_grid(0)
-        cluster_1 = db.retrieve_bloom_grid(1)
-        self.assertEqual(cluster_0.n_seqs, 2)
-        self.assertEqual(cluster_1.n_seqs, 1)
+        bg_0 = db.retrieve_bloom_grid(0)
+        bg_1 = db.retrieve_bloom_grid(1)
+        self.assertEqual(max(bg_0.py_count_grid_contains(KMER_30 + 'A')), 32 - bg_0.col_k)
+        self.assertEqual(max(bg_1.py_count_grid_contains(KMER_30 + 'C')), 32 - bg_1.col_k)
 
     def test_save(self):
         DB_SAVE_TEMP_FILE = join(dirname(__file__), 'temp.db_save_temp.sqlite')

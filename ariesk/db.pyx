@@ -132,8 +132,8 @@ cdef class GridCoverDB:
                 cluster.bloom_grid.grid_height,
                 np.array(cluster.bloom_grid.bitarray, dtype=np.uint8).tobytes(),
                 np.array(cluster.bloom_grid.bitgrid, dtype=np.uint8).tobytes(),
-                np.array(cluster.bloom_grid.row_hashes, dtype=np.uint8).tobytes(),
-                np.array(cluster.bloom_grid.col_hashes, dtype=np.uint8).tobytes(),
+                np.array(cluster.bloom_grid.row_hashes, dtype=np.uint64).tobytes(),
+                np.array(cluster.bloom_grid.col_hashes, dtype=np.uint64).tobytes(),
             )
         )
 
@@ -155,14 +155,30 @@ cdef class GridCoverDB:
         cdef const npc.uint8_t[:] raw_row_hashes = packed[7]
         cdef const npc.uint8_t[:] raw_col_hashes = packed[8]
         cdef const npc.uint8_t[:] bitarray = np.frombuffer(raw_bitarray, dtype=np.uint8)
-        cdef const npc.uint8_t[:, :] bitgrid = np.reshape(np.frombuffer(raw_bitgrid, dtype=np.uint8), (grid_height, grid_width))
-        print(np.array(bitgrid))
-        cdef const npc.uint64_t[:, :] row_hashes = np.frombuffer(raw_row_hashes, dtype=np.uint64)
-        cdef const npc.uint64_t[:, :] col_hashes = np.frombuffer(raw_col_hashes, dtype=np.uint64)
-        return BloomGrid(
-            col_k, row_k, grid_width, grid_height,
-            bitarray, bitgrid, row_hashes, col_hashes
+        cdef const npc.uint8_t[:, :] bitgrid = np.reshape(
+            np.frombuffer(raw_bitgrid, dtype=np.uint8),
+            (grid_height, grid_width)
         )
+        cdef const npc.uint64_t[:] flat_row_hashes = np.frombuffer(raw_row_hashes, dtype=np.uint64)
+        cdef int n_row_hashes = flat_row_hashes.shape[0] // row_k
+        cdef const npc.uint64_t[:, :] row_hashes = np.reshape(
+            flat_row_hashes, (n_row_hashes, row_k)
+        )
+        cdef const npc.uint64_t[:] flat_col_hashes = np.frombuffer(raw_col_hashes, dtype=np.uint64)
+        cdef int n_col_hashes = flat_col_hashes.shape[0] // col_k
+        cdef const npc.uint64_t[:, :] col_hashes = np.reshape(
+            flat_col_hashes, (n_col_hashes, col_k)
+        )
+        cdef BloomGrid bg = BloomGrid(
+            col_k, row_k, grid_width, grid_height, np.copy(row_hashes), np.copy(col_hashes)
+        )
+        cdef int i, j
+        for i in range(bg.bitarray.shape[0]):
+            bg.bitarray[i] = bitarray[i]
+        for i in range(bg.bitgrid.shape[0]):
+            for j in range(bg.bitgrid.shape[1]):
+                bg.bitgrid[i, j] = bitgrid[i, j]
+        return bg
 
     def py_add_point_to_cluster(self, npc.ndarray centroid, str kmer):
         cdef npc.uint8_t [:] binary_kmer = encode_kmer(kmer)
