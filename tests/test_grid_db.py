@@ -90,6 +90,7 @@ class TestGridCoverDB(TestCase):
         bg_1 = db.retrieve_bloom_grid(1)
         self.assertEqual(max(bg_0.py_count_grid_contains(KMER_30 + 'A')), 32 - bg_0.col_k)
         self.assertEqual(max(bg_1.py_count_grid_contains(KMER_30 + 'C')), 32 - bg_1.col_k)
+        self.assertRaises(IndexError, lambda: db.retrieve_bloom_grid(2))
 
     def test_save(self):
         DB_SAVE_TEMP_FILE = join(dirname(__file__), 'temp.db_save_temp.sqlite')
