@@ -141,17 +141,17 @@ cdef class GridCoverBuilder:
         return n_added
 
     @classmethod
-    def build_from_predb(cls, filepath, predb, box_side_len):
+    def build_from_predb(cls, filepath, predb, box_side_len, logger=None, log_interval=10000):
         db = GridCoverDB(
             sqlite3.connect(filepath),
             ramifier=predb.ramifier,
             box_side_len=box_side_len
         )
         out = cls(db)
-        out.add_kmers_from_predb(predb)
+        out.add_kmers_from_predb(predb, logger=logger, log_interval=log_interval)
         return out
 
-    def add_kmers_from_predb(self, predb):
+    def add_kmers_from_predb(self, predb, logger=None, log_interval=10000):
         cdef const npc.uint8_t[:] rft_blob
         cdef const npc.uint8_t[:] seq_blob
         cdef double[:] centroid_rft
@@ -166,6 +166,8 @@ cdef class GridCoverBuilder:
             centroid_rft = np.floor(np.array(rft) / self.db.box_side_len)
             self.db.add_point_to_cluster(centroid_rft, kmer2)
             self.num_kmers_added += 1
+            if logger and (self.num_kmers_added % log_interval == 0):
+                logger(self.num_kmers_added)
 
     @classmethod
     def from_filepath(cls, filepath, ramifier, box_side_len):

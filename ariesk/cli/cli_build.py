@@ -5,6 +5,7 @@ from json import dumps, loads
 from shutil import copyfile
 from os.path import isfile
 from os import environ
+from sys import stderr
 
 from ariesk.ram import (
     StatisticalRam,
@@ -156,15 +157,16 @@ def build_grid_cover_fasta(radius, dimension, threads, outfile, predb_list):
     environ['OPENBLAS_NUM_THREADS'] = f'{threads}'  # numpy uses one of these two libraries
     environ['MKL_NUM_THREADS'] = f'{threads}'
     predb_list = [line.strip() for line in predb_list]
+    logger = lambda n: stderr.write(f'\rAdded {n:,} k-mers to db')
     start = time()
     predb = PreDB.load_from_filepath(predb_list[0])
-    grid = GridCoverBuilder.build_from_predb(outfile, predb, radius)
+    grid = GridCoverBuilder.build_from_predb(outfile, predb, radius, logger=logger)
     with click.progressbar(predb_list) as predbs:
         for i, predb_filename in enumerate(predbs):
             if i == 0:
                 continue
             predb = PreDB.load_from_filepath(predb_filename)
-            n_added = grid.add_kmers_from_predb(predb)
+            n_added = grid.add_kmers_from_predb(predb, logger=logger)
     n_centers = grid.db.centroids().shape[0]
     grid.close()
     add_time = time() - start
