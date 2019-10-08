@@ -116,7 +116,11 @@ cdef class GridCoverDB:
             return self.cluster_cache[centroid_id]
         cdef npc.uint8_t[:, :] seqs = self.get_cluster_members(centroid_id)
         cdef Cluster cluster = Cluster(centroid_id, seqs, sub_k)
-        cluster.build_bloom_grid(filter_len, hashes)
+        try:
+            cluster.bloom_grid = self.retrieve_bloom_grid(centroid_id)
+        except IndexError:
+            cluster.build_bloom_grid(filter_len, hashes)
+            self.store_bloom_grid(cluster)
         cluster.build_subclusters(self.ramifier.k // 5)
         self.cluster_cache[centroid_id] = cluster
         return cluster
