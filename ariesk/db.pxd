@@ -34,6 +34,8 @@ cdef class GridCoverDB:
     cpdef load_other(self, GridCoverDB other)
     cdef double [:, :] c_get_centroids(self)
     cdef RotatingRamifier load_ramifier(self)
+    cdef store_inner_clusters(self, Cluster cluster)
+    cdef retrieve_inner_clusters(self, Cluster cluster)
     cdef save_ramifier(self)
     cdef _clear_buffer(self)
 

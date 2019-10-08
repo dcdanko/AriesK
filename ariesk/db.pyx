@@ -67,8 +67,15 @@ cdef class GridCoverDB:
         self.conn.execute('CREATE TABLE IF NOT EXISTS centroids (centroid_id int, vals BLOB)')
         self.conn.execute(
             '''CREATE TABLE IF NOT EXISTS blooms (
-                centroid_id int, col_k int, row_k int, grid_width int, grid_height int,
+                centroid_id int NOT NULL UNIQUE,
+                col_k int, row_k int, grid_width int, grid_height int,
                 bitarray BLOB, bitgrid BLOB, row_hashes BLOB, col_hashes BLOB
+            )'''
+        )
+        self.conn.execute(
+            '''CREATE TABLE IF NOT EXISTS inner_clusters (
+            centroid_id int NOT NULL UNIQUE,
+            inner_centers text, inner_cluster_members BLOB
             )'''
         )
         self.conn.execute('CREATE INDEX IF NOT EXISTS IX_blooms_centroid ON blooms(centroid_id)')
@@ -121,9 +128,36 @@ cdef class GridCoverDB:
         except IndexError:
             cluster.build_bloom_grid(filter_len, hashes)
             self.store_bloom_grid(cluster)
-        cluster.build_subclusters(self.ramifier.k // 5)
+        try:
+            self.retrieve_inner_clusters(cluster)
+        except IndexError:
+            cluster.build_subclusters(self.ramifier.k // 5)
+            self.store_inner_clusters(cluster)
         self.cluster_cache[centroid_id] = cluster
         return cluster
+
+    cdef store_inner_clusters(self, Cluster cluster):
+        self.conn.execute(
+            'INSERT INTO inner_clusters VALUES (?,?,?)',
+            (
+                cluster.centroid_id,
+                ','.join([str(el) for el in cluster.inner_centers]),
+                np.array(cluster.inner_clusters, dtype=np.uint64).tobytes(),
+            )
+        )
+
+    cdef retrieve_inner_clusters(self, Cluster cluster):
+        packed = list(self.conn.execute(
+            'SELECT * FROM inner_clusters WHERE centroid_id=?', (cluster.centroid_id,)
+        ))[0]
+        cdef list centers = [int(el) for el in packed[1].split(',')]
+        cdef const npc.uint8_t[:] raw_ic_members = packed[2]
+        cdef const npc.uint64_t[:, :] ic_members = np.reshape(
+            np.frombuffer(raw_ic_members, dtype=np.uint64),
+            (Cluster.n_seqs, Cluster.n_seqs)
+        )
+        cluster.inner_centers = centers
+        cluster.inner_clusters = np.copy(ic_members)
 
     cdef store_bloom_grid(self, Cluster cluster):
         self.conn.execute(
@@ -143,7 +177,6 @@ cdef class GridCoverDB:
 
     cpdef build_and_store_bloom_grid(self, int centroid_id, int filter_len, npc.uint64_t[:, :] hashes, int sub_k):
         cdef Cluster cluster = self.get_cluster(centroid_id, filter_len, hashes, sub_k)
-        self.store_bloom_grid(cluster)
 
     cpdef BloomGrid retrieve_bloom_grid(self, int centroid_id):
         cdef int grid_width, grid_height, col_k, row_k
