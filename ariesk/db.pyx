@@ -22,16 +22,6 @@ cdef simple_list(sql_cursor):
     return [el[0] for el in sql_cursor]
 
 
-cdef npc.uint64_t fnva(double[:] data):
-    cdef npc.uint64_t hval = 0xcbf29ce484222325
-    cdef int i
-    cdef max_int = 2 ** 4
-    for i in range(data.shape[0]):
-        hval = hval ^ (<npc.int64_t> data[i])
-        hval = hval * 0x100000001b3 % (max_int)
-    return hval
-
-
 cdef class GridCoverDB:
 
     def __cinit__(self, conn, ramifier=None, box_side_len=None, multithreaded=False):
