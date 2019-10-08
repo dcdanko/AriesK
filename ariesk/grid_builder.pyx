@@ -147,6 +147,7 @@ cdef class GridCoverBuilder:
             ramifier=predb.ramifier,
             box_side_len=box_side_len
         )
+        db._drop_indices()
         out = cls(db)
         out.add_kmers_from_predb(predb, logger=logger, log_interval=log_interval)
         return out

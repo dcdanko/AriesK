@@ -27,6 +27,7 @@ cdef class GridCoverDB:
     def __cinit__(self, conn, ramifier=None, box_side_len=None, multithreaded=False):
         self.conn = conn
         self._build_tables()
+        self._build_indices()
 
         self.centroid_insert_buffer = [None] * BUFFER_SIZE
         self.centroid_buffer_filled = 0
@@ -50,10 +51,10 @@ cdef class GridCoverDB:
             self.ramifier = ramifier
             self.save_ramifier()
 
-    cdef _build_tables(self):
+    cpdef _build_tables(self):
         self.conn.execute('CREATE TABLE IF NOT EXISTS basics (name text, value text)')
         self.conn.execute('CREATE TABLE IF NOT EXISTS kmers (centroid_id int, seq BLOB)')
-        self.conn.execute('CREATE INDEX IF NOT EXISTS IX_kmers_centroid ON kmers(centroid_id)')
+
         self.conn.execute('CREATE TABLE IF NOT EXISTS centroids (centroid_id int, vals BLOB)')
         self.conn.execute(
             '''CREATE TABLE IF NOT EXISTS blooms (
@@ -68,7 +69,14 @@ cdef class GridCoverDB:
             inner_centers text, inner_cluster_members BLOB
             )'''
         )
+
+    cpdef _build_indices(self):
+        self.conn.execute('CREATE INDEX IF NOT EXISTS IX_kmers_centroid ON kmers(centroid_id)')
         self.conn.execute('CREATE INDEX IF NOT EXISTS IX_blooms_centroid ON blooms(centroid_id)')
+
+    cpdef _drop_indices(self):
+        self.conn.execute('DROP INDEX IF EXISTS IX_kmers_centroid ON kmers(centroid_id)')
+        self.conn.execute('DROP INDEX IF EXISTS IX_blooms_centroid ON blooms(centroid_id)')
 
     cpdef get_kmers(self):
         cdef list out = []

@@ -23,7 +23,9 @@ cdef class GridCoverDB:
     cdef public int kmer_buffer_filled
 
     cpdef get_kmers(self)
-    cdef _build_tables(self)
+    cpdef _build_tables(self)
+    cpdef _build_indices(self)
+    cpdef _drop_indices(self)
     cdef npc.uint8_t[:, :] get_encoded_kmers(self)
     cdef npc.uint8_t[:, :] get_cluster_members(self, int centroid_id)
     cdef Cluster get_cluster(self, int centroid_id, int filter_len, npc.uint64_t[:, :] hashes, int sub_k)

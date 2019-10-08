@@ -167,6 +167,7 @@ def build_grid_cover_fasta(radius, dimension, threads, outfile, predb_list):
                 continue
             predb = PreDB.load_from_filepath(predb_filename)
             n_added = grid.add_kmers_from_predb(predb, logger=logger)
+    grid.db._build_indices()  # indices are disabled by `GCB.build_from_predb`
     n_centers = grid.db.centroids().shape[0]
     grid.close()
     add_time = time() - start
