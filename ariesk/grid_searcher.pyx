@@ -48,7 +48,11 @@ cdef class GridCoverSearcher:
         self.sub_k = 7
         self.n_hashes = 8
         self.array_size = 2 ** 10  # must be a power of 2
-        self._pre_compute_hashes()
+        try:
+            self.hash_functions = self.db.load_hash_functions()
+        except IndexError:
+            self._pre_compute_hashes()
+            self.db.save_hash_functions(self.hash_functions)
 
     cdef _pre_compute_hashes(self):
         cdef int i, j

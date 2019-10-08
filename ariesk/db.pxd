@@ -40,5 +40,7 @@ cdef class GridCoverDB:
     cdef retrieve_inner_clusters(self, Cluster cluster)
     cdef save_ramifier(self)
     cdef _clear_buffer(self)
+    cdef npc.uint64_t[:, :] load_hash_functions(self)
+    cdef save_hash_functions(self, npc.uint64_t[:, :] hash_functions)
 
 

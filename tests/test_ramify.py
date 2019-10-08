@@ -7,7 +7,7 @@ from ariesk.ram import (
     RotatingRamifier,
 )
 
-KMER_TABLE = join(dirname(__file__), 'small_31mer_table.csv')
+KMER_TABLE = join(dirname(__file__), 'small_annotated_31mer_table.csv')
 
 
 class TestRamify(TestCase):

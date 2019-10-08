@@ -77,7 +77,7 @@ class TestUtils(TestCase):
         for _ in range(100):
             if bf.py_contains(random_kmer(31)):
                 in_bloom += 1
-        self.assertLessEqual(in_bloom, 5)
+        self.assertLessEqual(in_bloom, 10)
 
     def test_mostly_not_in_bloom_small(self):
         k = 6

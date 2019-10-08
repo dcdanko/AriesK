@@ -152,7 +152,7 @@ cdef class GridCoverDB:
         cdef const npc.uint8_t[:] raw_ic_members = packed[2]
         cdef const npc.uint64_t[:, :] ic_members = np.reshape(
             np.frombuffer(raw_ic_members, dtype=np.uint64),
-            (Cluster.n_seqs, Cluster.n_seqs)
+            (cluster.n_seqs, cluster.n_seqs)
         )
         cluster.inner_centers = centers
         cluster.inner_clusters = np.copy(ic_members)
@@ -330,6 +330,28 @@ cdef class GridCoverDB:
                 ('rotation', stringify(np.array(self.ramifier.rotation).flatten())),
             ]
         )
+
+    cdef npc.uint64_t[:, :] load_hash_functions(self):
+        val = list(self.conn.execute(
+            'SELECT value FROM basics WHERE name=?',
+            ('hash_functions',)
+        ))[0][0]
+        cdef npc.uint64_t[:, :] hash_functions = np.array([
+            [int(el) for el in row.split(',')]
+            for row in val.split(',;') if len(row) > 0
+        ], dtype=np.uint64)
+        return hash_functions
+
+    cdef save_hash_functions(self, npc.uint64_t[:, :] hash_functions):
+        cdef str hf_str = ''
+        cdef int i, j
+        for i in range(hash_functions.shape[0]):
+            for j in range(hash_functions.shape[1]):
+                hf_str += str(hash_functions[i, j])
+                hf_str += ','
+            hf_str += ';'
+        self.conn.execute('INSERT INTO basics VALUES (?,?)', ('hash_functions', hf_str))
+        self.conn.commit()
 
     cdef RotatingRamifier load_ramifier(self):
 
