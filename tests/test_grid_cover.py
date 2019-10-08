@@ -63,6 +63,7 @@ class TestGridCover(TestCase):
     def test_build_grid_cover_from_pre(self):
         predb = PreDB.load_from_filepath(PRE_DB)
         grid = GridCoverBuilder.build_from_predb(':memory:', predb, 0.5)
+        grid.db._build_indices()
         grid.commit()
         n_centers = grid.db.centroids().shape[0]
         n_points = len(grid.db.get_kmers())

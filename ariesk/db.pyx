@@ -75,8 +75,8 @@ cdef class GridCoverDB:
         self.conn.execute('CREATE INDEX IF NOT EXISTS IX_blooms_centroid ON blooms(centroid_id)')
 
     cpdef _drop_indices(self):
-        self.conn.execute('DROP INDEX IF EXISTS IX_kmers_centroid ON kmers(centroid_id)')
-        self.conn.execute('DROP INDEX IF EXISTS IX_blooms_centroid ON blooms(centroid_id)')
+        self.conn.execute('DROP INDEX IF EXISTS IX_kmers_centroid')
+        self.conn.execute('DROP INDEX IF EXISTS IX_blooms_centroid')
 
     cpdef get_kmers(self):
         cdef list out = []
