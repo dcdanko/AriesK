@@ -32,6 +32,7 @@ extensions = [
         ('ariesk/linear_searcher.pyx', 'ariesk.linear_searcher'),
         ('ariesk/dbs/kmer_db.pyx', 'ariesk.dbs.kmer_db'),
         ('ariesk/dbs/core_db.pyx', 'ariesk.dbs.core_db'),
+        ('ariesk/dbs/contig_db.pyx', 'ariesk.dbs.contig_db'),
         ('ariesk/pre_db.pyx', 'ariesk.pre_db'),
         ('ariesk/cluster.pyx', 'ariesk.cluster'),
         ('ariesk/ram.pyx', 'ariesk.ram'),

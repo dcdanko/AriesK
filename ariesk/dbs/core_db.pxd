@@ -20,6 +20,7 @@ cdef class CoreDB:
     cdef RotatingRamifier load_ramifier(self)
     cpdef get_kmers(self)
     cdef npc.uint8_t[:, :] get_encoded_kmers(self)
+    cdef int add_centroid(self, double[:] centroid)
     cdef add_point_to_cluster(
         self,
         double[:] centroid,

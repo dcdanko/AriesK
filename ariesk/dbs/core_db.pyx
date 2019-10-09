@@ -100,17 +100,7 @@ cdef class CoreDB:
 
         Called often during build/merge
         """
-        cdef int centroid_id
-        cdef tuple centroid_key = tuple(centroid)
-        if centroid_key in self.centroid_cache:
-            centroid_id = self.centroid_cache[centroid_key]
-        else:
-            self.centroid_cache[centroid_key] = len(self.centroid_cache)
-            centroid_id = self.centroid_cache[centroid_key]
-            self.centroid_insert_buffer[self.centroid_buffer_filled] = (
-                centroid_id, np.array(centroid, dtype=float).tobytes()
-            )
-            self.centroid_buffer_filled += 1
+        cdef int centroid_id = self.add_centroid(centroid)
         self.kmer_insert_buffer[self.kmer_buffer_filled] = (
             centroid_id, np.array(binary_kmer, dtype=np.uint8).tobytes(), annotation
         )
@@ -143,6 +133,22 @@ cdef class CoreDB:
                 )
         self.centroid_buffer_filled = 0
         self.kmer_buffer_filled = 0
+
+    cdef int add_centroid(self, double[:] centroid):
+        cdef int centroid_id
+        cdef tuple centroid_key = tuple(centroid)
+        if centroid_key in self.centroid_cache:
+            centroid_id = self.centroid_cache[centroid_key]
+        else:
+            self.centroid_cache[centroid_key] = len(self.centroid_cache)
+            centroid_id = self.centroid_cache[centroid_key]
+            self.centroid_insert_buffer[self.centroid_buffer_filled] = (
+                centroid_id, np.array(centroid, dtype=float).tobytes()
+            )
+            self.centroid_buffer_filled += 1
+        if self.centroid_buffer_filled == BUFFER_SIZE:
+            self._clear_buffer()
+        return centroid_id
 
     cdef save_ramifier(self):
         stringify = lambda M: ','.join([str(el) for el in M])
