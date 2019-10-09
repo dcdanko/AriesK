@@ -6,7 +6,7 @@ from json import dumps, loads
 from time import clock
 
 from ariesk.grid_searcher import GridCoverSearcher
-from ariesk.db import GridCoverDB
+from ariesk.dbs.kmer_db import GridCoverDB
 
 
 @click.group('stats')

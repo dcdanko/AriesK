@@ -6,7 +6,7 @@ from unittest import TestCase
 
 from ariesk.ram import RotatingRamifier
 from ariesk.grid_builder import GridCoverBuilder
-from ariesk.db import GridCoverDB
+from ariesk.dbs.kmer_db import GridCoverDB
 from ariesk.pre_db import PreDB
 from ariesk.utils.parallel_build import coordinate_parallel_build
 

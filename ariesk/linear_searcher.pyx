@@ -4,7 +4,7 @@
 
 cimport numpy as npc
 
-from ariesk.db cimport GridCoverDB
+from ariesk.dbs.kmer_db cimport GridCoverDB
 from ariesk.utils.kmers cimport (
     needle_dist,
     hamming_dist,

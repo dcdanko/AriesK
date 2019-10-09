@@ -1,0 +1,5 @@
+
+
+cdef Class ContigDB:
+    
+    

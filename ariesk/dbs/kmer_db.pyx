@@ -15,6 +15,7 @@ from ariesk.utils.bloom_filter cimport BloomGrid
 from ariesk.utils.kmers cimport encode_kmer, decode_kmer
 from ariesk.ram cimport RotatingRamifier
 from ariesk.cluster cimport Cluster
+from ariesk.dbs.core_db cimport CoreDB
 
 BUFFER_SIZE = 10 * 1000
 
@@ -22,40 +23,23 @@ cdef simple_list(sql_cursor):
     return [el[0] for el in sql_cursor]
 
 
-cdef class GridCoverDB:
+cdef class GridCoverDB(CoreDB):
 
-    def __cinit__(self, conn, ramifier=None, box_side_len=None, multithreaded=False):
-        self.conn = conn
+    def __cinit__(self, conn, ramifier=None, box_side_len=None):
+        super().__init__(conn, ramifier=ramifier, box_side_len=box_side_len)
         self._build_tables()
         self._build_indices()
-
-        self.centroid_insert_buffer = [None] * BUFFER_SIZE
-        self.centroid_buffer_filled = 0
-        self.kmer_insert_buffer = [None] * BUFFER_SIZE
-        self.kmer_buffer_filled = 0
-
-        self.centroid_cache = {}
         self.cluster_cache = {}
-        if ramifier is None:
-            self.ramifier = self.load_ramifier()
-            self.box_side_len = float(self.conn.execute(
-                'SELECT value FROM basics WHERE name=?', ('box_side_len',)
-            ).fetchone()[0])
-        else:
-            assert box_side_len is not None
-            self.box_side_len = box_side_len
-            self.conn.execute(
-                'INSERT INTO basics VALUES (?,?)',
-                ('box_side_len', box_side_len)
-            )
-            self.ramifier = ramifier
-            self.save_ramifier()
+
+        self.sub_k = 7
+        self.n_hashes = 8
+        self.array_size = 2 ** 10  # must be a power of 2
+        try:
+            self.hash_functions = self.load_hash_functions()
+        except IndexError:
+            self.build_save_hash_functions()
 
     cpdef _build_tables(self):
-        self.conn.execute('CREATE TABLE IF NOT EXISTS basics (name text, value text)')
-        self.conn.execute('CREATE TABLE IF NOT EXISTS kmers (centroid_id int, seq BLOB)')
-
-        self.conn.execute('CREATE TABLE IF NOT EXISTS centroids (centroid_id int, vals BLOB)')
         self.conn.execute(
             '''CREATE TABLE IF NOT EXISTS blooms (
                 centroid_id int NOT NULL UNIQUE,
@@ -71,43 +55,23 @@ cdef class GridCoverDB:
         )
 
     cpdef _build_indices(self):
-        self.conn.execute('CREATE INDEX IF NOT EXISTS IX_kmers_centroid ON kmers(centroid_id)')
+        self.conn.execute('CREATE INDEX IF NOT EXISTS IX_seqs_centroid ON seqs(centroid_id)')
         self.conn.execute('CREATE INDEX IF NOT EXISTS IX_blooms_centroid ON blooms(centroid_id)')
 
     cpdef _drop_indices(self):
-        self.conn.execute('DROP INDEX IF EXISTS IX_kmers_centroid')
+        self.conn.execute('DROP INDEX IF EXISTS IX_seqs_centroid')
         self.conn.execute('DROP INDEX IF EXISTS IX_blooms_centroid')
-
-    cpdef get_kmers(self):
-        cdef list out = []
-        cdef const npc.uint8_t [:] binary_kmer
-        for cid, binary_kmer in self.conn.execute('SELECT * FROM kmers'):
-            binary_kmer = np.frombuffer(binary_kmer, dtype=np.uint8)
-            kmer = decode_kmer(binary_kmer)
-            out.append((cid, kmer))
-        return out
-
-    cdef npc.uint8_t [:, :] get_encoded_kmers(self):
-        cdef int i, j
-        cdef list kmers = simple_list(self.conn.execute('SELECT seq FROM kmers'))
-        cdef npc.uint8_t [:, :] binary_kmers = np.ndarray((len(kmers), self.ramifier.k), dtype=np.uint8)
-        cdef const npc.uint8_t [:] binary_kmer
-        for i, kmer in enumerate(kmers):
-            binary_kmer = np.frombuffer(kmer, dtype=np.uint8)
-            for j in range(self.ramifier.k):
-                binary_kmers[i, j] = binary_kmer[j]
-        return binary_kmers
 
     def py_get_cluster_members(self, int centroid_id):
         return np.array(self.get_cluster_members(centroid_id))
 
-    cdef npc.uint8_t [:, :] get_cluster_members(self, int centroid_id):
+    cdef npc.uint8_t[:, :] get_cluster_members(self, int centroid_id):
         """Retrieve the members of a cluster. 
 
         Called often during search, wrapped with cache.
         """
         cdef int i, j
-        cdef list kmers = simple_list(self.conn.execute('SELECT seq FROM kmers WHERE centroid_id=?', (centroid_id,)))
+        cdef list kmers = simple_list(self.conn.execute('SELECT seq FROM seqs WHERE centroid_id=?', (centroid_id,)))
         cdef npc.uint8_t [:, :] binary_kmers = np.ndarray((len(kmers), self.ramifier.k), dtype=np.uint8)
         cdef const npc.uint8_t [:] binary_kmer
         for i, kmer in enumerate(kmers):
@@ -116,15 +80,15 @@ cdef class GridCoverDB:
                 binary_kmers[i, j] = binary_kmer[j]
         return binary_kmers
 
-    cdef Cluster get_cluster(self, int centroid_id, int filter_len, npc.uint64_t[:, :] hashes, int sub_k):
+    cdef Cluster get_cluster(self, int centroid_id):
         if centroid_id in self.cluster_cache:
             return self.cluster_cache[centroid_id]
         cdef npc.uint8_t[:, :] seqs = self.get_cluster_members(centroid_id)
-        cdef Cluster cluster = Cluster(centroid_id, seqs, sub_k)
+        cdef Cluster cluster = Cluster(centroid_id, seqs, self.sub_k)
         try:
             cluster.bloom_grid = self.retrieve_bloom_grid(centroid_id)
         except IndexError:
-            cluster.build_bloom_grid(filter_len, hashes)
+            cluster.build_bloom_grid(self.array_size, self.hash_functions)
             self.store_bloom_grid(cluster)
         try:
             self.retrieve_inner_clusters(cluster)
@@ -173,8 +137,8 @@ cdef class GridCoverDB:
             )
         )
 
-    cpdef build_and_store_bloom_grid(self, int centroid_id, int filter_len, npc.uint64_t[:, :] hashes, int sub_k):
-        cdef Cluster cluster = self.get_cluster(centroid_id, filter_len, hashes, sub_k)
+    cpdef build_and_store_bloom_grid(self, int centroid_id):
+        cdef Cluster cluster = self.get_cluster(centroid_id)
 
     cpdef BloomGrid retrieve_bloom_grid(self, int centroid_id):
         cdef int grid_width, grid_height, col_k, row_k
@@ -215,81 +179,6 @@ cdef class GridCoverDB:
                 bg.bitgrid[i, j] = bitgrid[i, j]
         return bg
 
-    def py_add_point_to_cluster(self, npc.ndarray centroid, str kmer):
-        cdef npc.uint8_t [:] binary_kmer = encode_kmer(kmer)
-        self.add_point_to_cluster(centroid, binary_kmer)
-
-    cdef add_point_to_cluster(self, double[:] centroid, npc.uint8_t [::] binary_kmer):
-        """Store a new point in the db. centroid is not assumed to exist.
-
-        Called often during build/merge
-        """
-        cdef int centroid_id
-        cdef tuple centroid_key = tuple(centroid)
-        if centroid_key in self.centroid_cache:
-            centroid_id = self.centroid_cache[centroid_key]
-        else:
-            self.centroid_cache[centroid_key] = len(self.centroid_cache)
-            centroid_id = self.centroid_cache[centroid_key]
-            self.centroid_insert_buffer[self.centroid_buffer_filled] = (
-                centroid_id, np.array(centroid, dtype=float).tobytes()
-            )
-            self.centroid_buffer_filled += 1
-        self.kmer_insert_buffer[self.kmer_buffer_filled] = (
-            centroid_id, np.array(binary_kmer, dtype=np.uint8).tobytes()
-        )
-        self.kmer_buffer_filled += 1
-        if self.kmer_buffer_filled >= BUFFER_SIZE:
-            self._clear_buffer()
-
-    cdef _clear_buffer(self):
-        if self.centroid_buffer_filled > 0:
-            if self.centroid_buffer_filled == BUFFER_SIZE:
-                self.conn.executemany(
-                    'INSERT INTO centroids VALUES (?,?)',
-                    self.centroid_insert_buffer
-                )
-            else:
-                self.conn.executemany(
-                    'INSERT INTO centroids VALUES (?,?)',
-                    self.centroid_insert_buffer[:self.centroid_buffer_filled]
-                )
-        if self.kmer_buffer_filled > 0:
-            if self.kmer_buffer_filled == BUFFER_SIZE:
-                self.conn.executemany(
-                    'INSERT INTO kmers VALUES (?,?)',
-                    self.kmer_insert_buffer
-                )
-            else:
-                self.conn.executemany(
-                    'INSERT INTO kmers VALUES (?,?)',
-                    self.kmer_insert_buffer[:self.kmer_buffer_filled]
-                )
-        self.centroid_buffer_filled = 0
-        self.kmer_buffer_filled = 0
-
-    cdef double [:, :] c_get_centroids(self):
-        """Return a memoryview on cetnroids in this db.
-
-        Called just once on database load.
-        """
-        centroid_strs = list(self.conn.execute('SELECT * FROM centroids'))
-        cdef int i, j
-        cdef double [:, :] centroids = np.ndarray((len(centroid_strs), self.ramifier.d))
-        cdef const double [:] centroid
-        for i, centroid_str in centroid_strs:
-            centroid = np.frombuffer(centroid_str, dtype=float, count=self.ramifier.d)
-            for j in range(self.ramifier.d):
-                centroids[i, j] = centroid[j]
-        return centroids
-
-    def close(self):
-        """Close the DB and flush data to disk."""
-        self.commit()
-        self._clear_buffer()
-        self.conn.commit()
-        self.conn.close()
-
     def commit(self):
         """Flush data to disk."""
         self._clear_buffer()
@@ -313,23 +202,10 @@ cdef class GridCoverDB:
                     (new_id, other_centroid_str)
                 )
 
-        for other_id, kmer in other.conn.execute('SELECT * FROM kmers'):
+        for other_id, kmer, annotation in other.conn.execute('SELECT * FROM seqs'):
             new_id = centroid_id_remap[other_id]
-            self.conn.execute('INSERT INTO kmers VALUES (?,?)', (new_id, kmer))
+            self.conn.execute('INSERT INTO seqs VALUES (?,?,?)', (new_id, kmer, annotation))
         self.commit()
-
-    cdef save_ramifier(self):
-        stringify = lambda M: ','.join([str(el) for el in M])
-        self.conn.executemany(
-            'INSERT INTO basics VALUES (?,?)',
-            [
-                ('k', str(self.ramifier.k)),
-                ('d', str(self.ramifier.d)),
-                ('center', stringify(self.ramifier.center)),
-                ('scale', stringify(self.ramifier.scale)),
-                ('rotation', stringify(np.array(self.ramifier.rotation).flatten())),
-            ]
-        )
 
     cdef npc.uint64_t[:, :] load_hash_functions(self):
         val = list(self.conn.execute(
@@ -342,41 +218,23 @@ cdef class GridCoverDB:
         ], dtype=np.uint64)
         return hash_functions
 
-    cdef save_hash_functions(self, npc.uint64_t[:, :] hash_functions):
-        cdef str hf_str = ''
+    cdef build_save_hash_functions(self):
         cdef int i, j
-        for i in range(hash_functions.shape[0]):
-            for j in range(hash_functions.shape[1]):
-                hf_str += str(hash_functions[i, j])
+        self.hash_functions = np.ndarray((self.n_hashes, self.sub_k), dtype=np.uint64)
+        for i in range(self.n_hashes):
+            for j, val in enumerate(np.random.permutation(self.sub_k)):
+                self.hash_functions[i, j] = val
+        cdef str hf_str = ''
+        for i in range(self.hash_functions.shape[0]):
+            for j in range(self.hash_functions.shape[1]):
+                hf_str += str(self.hash_functions[i, j])
                 hf_str += ','
             hf_str += ';'
         self.conn.execute('INSERT INTO basics VALUES (?,?)', ('hash_functions', hf_str))
         self.conn.commit()
-
-    cdef RotatingRamifier load_ramifier(self):
-
-        def get_basic(key):
-            val = self.conn.execute('SELECT value FROM basics WHERE name=?', (key,))
-            return val.fetchone()[0]
-
-        def numpify(key):
-            val = get_basic(key)
-            return np.array([float(el) for el in val.split(',')])
-
-        k = int(get_basic('k'))
-        d = int(get_basic('d'))
-        center = numpify('center')
-        scale = numpify('scale')
-        rotation = numpify('rotation')
-        rotation = np.reshape(rotation, (4 * k, 4 * k))
-
-        return RotatingRamifier(k, d, rotation, center, scale)
 
     @classmethod
     def load_from_filepath(cls, filepath):
         """Return a GridCoverDB."""
         connection = sqlite3.connect(filepath, cached_statements=10 * 1000)
         return GridCoverDB(connection)
-
-    def centroids(self):
-        return np.array(self.c_get_centroids())

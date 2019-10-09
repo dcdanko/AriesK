@@ -8,7 +8,7 @@ from scipy.spatial import cKDTree
 
 from libc.math cimport ceil
 from ariesk.ram cimport RotatingRamifier
-from ariesk.db cimport GridCoverDB
+from ariesk.dbs.kmer_db cimport GridCoverDB
 from ariesk.cluster cimport Cluster
 from ariesk.utils.bloom_filter cimport fnva, fast_modulo
 from ariesk.utils.kmers cimport (
@@ -45,21 +45,10 @@ cdef class GridCoverSearcher:
                 self.centroid_rfts[i, j] += (self.db.box_side_len / 2)
         self.tree = cKDTree(self.centroid_rfts)
         self.logging = False
-        self.sub_k = 7
-        self.n_hashes = 8
-        self.array_size = 2 ** 10  # must be a power of 2
-        try:
-            self.hash_functions = self.db.load_hash_functions()
-        except IndexError:
-            self._pre_compute_hashes()
-            self.db.save_hash_functions(self.hash_functions)
-
-    cdef _pre_compute_hashes(self):
-        cdef int i, j
-        self.hash_functions = np.ndarray((self.n_hashes, self.sub_k), dtype=np.uint64)
-        for i in range(self.n_hashes):
-            for j, val in enumerate(np.random.permutation(self.sub_k)):
-                self.hash_functions[i, j] = val
+        self.sub_k = self.db.sub_k
+        self.n_hashes = self.db.n_hashes
+        self.array_size = self.db.array_size
+        self.hash_functions = self.db.hash_functions
 
     def add_logger(self, logger):
         self.logging = True
@@ -140,7 +129,7 @@ cdef class GridCoverSearcher:
         cdef npc.uint8_t[:] filtered_centers = np.zeros((len(centers,)), dtype=np.uint8)
         cdef int n_points_original = 0
         for center in centers:
-            cluster = self.db.get_cluster(center, self.array_size, self.hash_functions, self.sub_k)
+            cluster = self.db.get_cluster(center)
             if self.logging:
                 n_points_original += cluster.seqs.shape[0]
             if inner_metric == 'none':
@@ -234,12 +223,7 @@ cdef class GridCoverSearcher:
         for center in centers:
             i += 1
             if filtered_centers[i] == 1:
-                cluster = self.db.get_cluster(
-                    center,
-                    self.array_size,
-                    self.hash_functions,
-                    self.sub_k
-                )
+                cluster = self.db.get_cluster(center)
                 row_hits = cluster.test_row_membership(hash_vals, max_filter_misses)
                 if inner_metric == 'none' or max(row_hits) > 0:
                     searched = self._fine_search(

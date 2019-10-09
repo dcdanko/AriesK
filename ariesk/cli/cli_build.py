@@ -13,7 +13,7 @@ from ariesk.ram import (
 )
 from ariesk.grid_builder import GridCoverBuilder
 from ariesk.grid_searcher import GridCoverSearcher
-from ariesk.db import GridCoverDB
+from ariesk.dbs.kmer_db import GridCoverDB
 from ariesk.pre_db import PreDB
 from ariesk.utils.parallel_build import coordinate_parallel_build
 
@@ -180,14 +180,11 @@ def build_grid_cover_fasta(radius, dimension, threads, outfile, predb_list):
 @click.argument('grid_db', type=click.Path())
 def build_grid_cover(grid_db):
     db = GridCoverDB.load_from_filepath(grid_db)
-    searcher = GridCoverSearcher(db)
     start = time()
     n_centers = db.centroids().shape[0]
     with click.progressbar(list(range(n_centers))) as centroid_ids:
         for centroid_id in centroid_ids:
-            db.build_and_store_bloom_grid(
-                centroid_id, searcher.array_size, searcher.hash_functions, searcher.sub_k
-            )
+            db.build_and_store_bloom_grid(centroid_id)
     db.close()
     add_time = time() - start
     click.echo(f'Built {n_centers} bloom filters in {add_time:.5}s.', err=True)

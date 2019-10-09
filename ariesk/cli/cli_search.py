@@ -1,7 +1,7 @@
 import click
 from time import time
 
-from ariesk.db import GridCoverDB
+from ariesk.dbs.kmer_db import GridCoverDB
 from ariesk.utils.parallel_build import coordinate_parallel_build
 from ariesk.search_server import SearchClient, SearchServer
 from ariesk.grid_searcher import GridCoverSearcher

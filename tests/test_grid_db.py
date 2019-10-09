@@ -8,7 +8,7 @@ from os import remove
 from os.path import join, dirname
 from unittest import TestCase
 
-from ariesk.db import GridCoverDB
+from ariesk.dbs.kmer_db import GridCoverDB
 from ariesk.grid_searcher import GridCoverSearcher
 from ariesk.pre_db import PreDB
 from ariesk.ram import RotatingRamifier
@@ -81,11 +81,8 @@ class TestGridCoverDB(TestCase):
         db.py_add_point_to_cluster(np.array([0., 0., 0., 0.]), KMER_30 + 'T')
         db.py_add_point_to_cluster(np.array([1., 0., 0., 0.]), KMER_30 + 'C')
         db.commit()
-        searcher = GridCoverSearcher(db)
         for centroid_id in [0, 1]:
-            db.build_and_store_bloom_grid(
-                centroid_id, searcher.array_size, searcher.hash_functions, searcher.sub_k
-            )
+            db.build_and_store_bloom_grid(centroid_id)
         bg_0 = db.retrieve_bloom_grid(0)
         bg_1 = db.retrieve_bloom_grid(1)
         self.assertEqual(max(bg_0.py_count_grid_contains(KMER_30 + 'A')), 32 - bg_0.col_k)

@@ -12,7 +12,7 @@ from libc.stdlib cimport malloc, free
 
 from ariesk.utils.kmers cimport encode_kmer, encode_kmer_from_buffer
 from ariesk.ram cimport RotatingRamifier
-from ariesk.db cimport GridCoverDB
+from ariesk.dbs.kmer_db cimport GridCoverDB
 from ariesk.pre_db import PreDB
 
 
