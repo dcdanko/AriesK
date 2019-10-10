@@ -21,11 +21,17 @@ cdef class ContigSearcher:
     cdef public ContigDB db
     cdef public double[:, :] centroid_rfts
     cdef public object tree
+    cdef public object logger
+    cdef public bint logging
 
-    def __cinit__(self, contig_db):
+    def __cinit__(self, contig_db, logger=None):
         self.db = contig_db
         self.centroid_rfts = self.db.c_get_centroids()
         self.tree = cKDTree(self.centroid_rfts)
+        self.logger = logger
+        self.logging = False
+        if self.logger:
+            self.logging = True
 
     def py_search(self, str query, double coarse_radius, double kmer_fraction):
         return [
@@ -36,13 +42,19 @@ cdef class ContigSearcher:
         ]
 
     cdef list search(self, npc.uint8_t[:] query, double coarse_radius, double kmer_fraction):
+        if self.logging:
+            self.logger(f'Starting query. Coarse radius {coarse_radius}, k-mer fraction {kmer_fraction}')
         cdef int n_kmers = (query.shape[0] - self.db.ramifier.k + 1) // (self.db.ramifier.k // 2)
         cdef dict counts = self.coarse_search(n_kmers, query, coarse_radius)
+        if self.logging:
+            self.logger(f'Coarse search complete. {len(counts)} candidates.')
         cdef list out = []
         for seq_coord, count in counts.items():
             if count > (n_kmers * kmer_fraction):
                 contig = self.db.get_contig(seq_coord)
                 out.append(contig)
+        if self.logging:
+            self.logger(f'Fine search complete. {len(out)} passed.')
         return out
 
     cdef dict coarse_search(self, int n_kmers, npc.uint8_t[:] query, double coarse_radius):
@@ -69,5 +81,5 @@ cdef class ContigSearcher:
 
 
     @classmethod
-    def from_filepath(cls, filepath):
-        return cls(ContigDB.load_from_filepath(filepath))
+    def from_filepath(cls, filepath, logger=None):
+        return cls(ContigDB.load_from_filepath(filepath), logger=logger)

@@ -5,16 +5,54 @@ from ariesk.dbs.kmer_db import GridCoverDB
 from ariesk.utils.parallel_build import coordinate_parallel_build
 from ariesk.search_server import SearchClient, SearchServer
 from ariesk.grid_searcher import GridCoverSearcher
+from ariesk.contig_searcher import ContigSearcher
 from ariesk.ram import (
     Ramifier,
     StatisticalRam,
     RotatingRamifier,
 )
 
+class TimingLogger:
+
+    def __init__(self, logger):
+        self.last_message_time = time()
+        self.logger = logger
+
+    def log(self, msg):
+        time_elapsed = time() - self.last_message_time
+        msg = f'[{time_elapsed:.5}s] {msg}'
+        self.logger(msg)
+        self.last_message_time = time()
+
 
 @click.group('search')
 def search_cli():
     pass
+
+
+@search_cli.command('contig')
+@click.option('-v/-q', '--verbose/--quiet', default=False)
+@click.option('-r', '--radius', default=0.01)
+@click.option('-f', '--kmer-fraction', default=0.5)
+@click.option('-o', '--outfile', default='-', type=click.File('w'))
+@click.argument('contig_db', type=click.Path())
+@click.argument('contigs', nargs=-1)
+def search_contig(verbose, radius, kmer_fraction, outfile, contig_db, contigs):
+    logger = None
+    if verbose:
+        logger = TimingLogger(lambda el: click.echo(el, err=True)).log
+    searcher = ContigSearcher.from_filepath(contig_db, logger=logger)
+    for contig in contigs:
+        min_time = 1000 * 1000
+        for _ in range(3):  # for testing
+            start = time()
+            hits = searcher.py_search(contig, radius, kmer_fraction)
+            elapsed = time() - start
+            if elapsed < min_time:
+                min_time = elapsed
+        click.echo(f'Search complete in {min_time:.5}s')
+        for hit in hits:
+            print(f'{contig} {hit}', file=outfile)
 
 
 @search_cli.command('seq')
