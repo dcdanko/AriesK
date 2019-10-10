@@ -34,11 +34,12 @@ def search_cli():
 @search_cli.command('contig')
 @click.option('-v/-q', '--verbose/--quiet', default=False)
 @click.option('-r', '--radius', default=0.01)
+@click.option('-i', '--seq-identity', default=0.5)
 @click.option('-f', '--kmer-fraction', default=0.5)
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
 @click.argument('contig_db', type=click.Path())
 @click.argument('contigs', nargs=-1)
-def search_contig(verbose, radius, kmer_fraction, outfile, contig_db, contigs):
+def search_contig(verbose, radius, seq_identity, kmer_fraction, outfile, contig_db, contigs):
     logger = None
     if verbose:
         logger = TimingLogger(lambda el: click.echo(el, err=True)).log
@@ -47,7 +48,7 @@ def search_contig(verbose, radius, kmer_fraction, outfile, contig_db, contigs):
         min_time = 1000 * 1000
         for _ in range(3):  # for testing
             start = time()
-            hits = searcher.py_search(contig, radius, kmer_fraction)
+            hits = searcher.py_search(contig, radius, kmer_fraction, seq_identity)
             elapsed = time() - start
             if elapsed < min_time:
                 min_time = elapsed
@@ -59,18 +60,19 @@ def search_contig(verbose, radius, kmer_fraction, outfile, contig_db, contigs):
 @search_cli.command('contig-fasta')
 @click.option('-v/-q', '--verbose/--quiet', default=False)
 @click.option('-r', '--radius', default=0.01)
+@click.option('-i', '--seq-identity', default=0.5)
 @click.option('-f', '--kmer-fraction', default=0.5)
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
 @click.argument('contig_db', type=click.Path())
 @click.argument('fasta', type=click.Path())
-def search_contig(verbose, radius, kmer_fraction, outfile, contig_db, fasta):
+def search_contig(verbose, radius, seq_identity, kmer_fraction, outfile, contig_db, fasta):
     logger = None
     if verbose:
         logger = TimingLogger(lambda el: click.echo(el, err=True)).log
     searcher = ContigSearcher.from_filepath(contig_db, logger=logger)
     for _ in range(3):
         start = time()
-        all_hits = searcher.search_contigs_from_fasta(fasta, radius, kmer_fraction)
+        all_hits = searcher.search_contigs_from_fasta(fasta, radius, kmer_fraction, seq_identity)
         elapsed = time() - start
         click.echo(f'Search complete in {elapsed:.5}s')
     for contig, hits in all_hits.items():

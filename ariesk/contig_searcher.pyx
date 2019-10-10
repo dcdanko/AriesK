@@ -42,27 +42,27 @@ cdef class ContigSearcher:
         if self.logger is not None:
             self.logging = True
 
-    def py_search(self, str query, double coarse_radius, double kmer_fraction):
+    def py_search(self, str query, double coarse_radius, double kmer_fraction, double identity=0.5):
         return [
             (el[0], decode_kmer(el[1]))
             for el in self.search(
-                encode_kmer(query), coarse_radius, kmer_fraction
+                encode_kmer(query), coarse_radius, kmer_fraction, identity
             )
         ]
 
-    cdef list search(self, npc.uint8_t[:] query, double coarse_radius, double kmer_fraction):
+    cdef list search(self, npc.uint8_t[:] query, double coarse_radius, double kmer_fraction, double identity):
         if self.logging:
             self.logger(f'Starting query. Coarse radius {coarse_radius}, k-mer fraction {kmer_fraction}')
         cdef int n_kmers = (query.shape[0] - self.db.ramifier.k + 1) // (self.db.ramifier.k // 2)
         cdef dict counts = self.coarse_search(n_kmers, query, coarse_radius)
         if self.logging:
             self.logger(f'Coarse search complete. {len(counts)} candidates.')
-        out = self.fine_search(query, n_kmers, counts, kmer_fraction)
+        out = self.fine_search(query, n_kmers, counts, kmer_fraction, identity)
         if self.logging:
             self.logger(f'Fine search complete. {len(out)} passed.')
         return out
 
-    cdef list fine_search(self, npc.uint8_t[:] query, int n_kmers, dict counts, double kmer_fraction):
+    cdef list fine_search(self, npc.uint8_t[:] query, int n_kmers, dict counts, double kmer_fraction, double identity):
         cdef StripedSmithWaterman water = StripedSmithWaterman(query, score_only=True)
         cdef list out = []
         cdef double aln_score
@@ -70,7 +70,7 @@ cdef class ContigSearcher:
             if count > (n_kmers * kmer_fraction):
                 contig = self.db.get_contig(seq_coord)
                 aln_score = water.align(contig)
-                if aln_score > (0.5 * 0.5 * query.shape[0]):  # match score is 2, 50% identity
+                if aln_score > (identity * 0.5 * query.shape[0]):  # match score is 2
                     out.append((aln_score, contig))
 
         return out
@@ -97,7 +97,7 @@ cdef class ContigSearcher:
                     counts[seq_coord] = 1 + counts.get(seq_coord, 0)
         return counts
 
-    def search_contigs_from_fasta(self, str filename, double coarse_radius, double kmer_fraction):
+    def search_contigs_from_fasta(self, str filename, double coarse_radius, double kmer_fraction, double identity):
         cdef FILE * cfile = fopen(filename.encode("UTF-8"), "rb")
         if cfile == NULL:
             raise FileNotFoundError(2, "No such file or directory: '%s'" % filename)
@@ -115,7 +115,7 @@ cdef class ContigSearcher:
             read = getdelim(&line, &l, b'>', cfile)
             if read == -1: break
             seq = encode_seq_from_buffer(line, l)
-            out[decode_kmer(seq)] = self.search(seq, coarse_radius, kmer_fraction)
+            out[decode_kmer(seq)] = self.search(seq, coarse_radius, kmer_fraction, identity)
             n_added += 1
             header = NULL
             line = NULL  # I don't understand why this line is necessary but
