@@ -85,7 +85,7 @@ cdef class ContigDB(CoreDB):
         self.centroid_id_cache[centroid_id] = out
         return out
 
-    cpdef npc.uint8_t[:] get_contig(self, int seq_coord):
+    cpdef tuple get_contig(self, int seq_coord):
         if seq_coord in self.contig_cache:
             return self.contig_cache[seq_coord]
         packed = [el for el in self.conn.execute(
@@ -95,9 +95,9 @@ cdef class ContigDB(CoreDB):
         cdef str genome_name = packed[1]
         cdef str contig_name = packed[2]
         contig = np.frombuffer(contig, dtype=np.uint8)
-        cdef npc.uint8_t[:] out = np.copy(contig)
+        cdef tuple out = (genome_name, contig_name, np.copy(contig))
         self.contig_cache[seq_coord] = out
-        return (genome_name, contig_name, out)
+        return out
 
     cdef add_contig_seq(self, str genome_name, str contig_name, int seq_coord, npc.uint8_t[:] contig_section):
         self.conn.execute(

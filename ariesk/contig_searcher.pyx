@@ -44,7 +44,7 @@ cdef class ContigSearcher:
 
     def py_search(self, str query, double coarse_radius, double kmer_fraction, double identity=0.5):
         return [
-            (el[0], decode_kmer(el[1]))
+            el
             for el in self.search(
                 encode_kmer(query), coarse_radius, kmer_fraction, identity
             )
