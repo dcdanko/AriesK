@@ -68,10 +68,10 @@ cdef class ContigSearcher:
         cdef double aln_score
         for seq_coord, count in counts.items():
             if count > (n_kmers * kmer_fraction):
-                genome_name, contig_name, contig = self.db.get_contig(seq_coord)
+                genome_name, contig_name, contig_coord, contig = self.db.get_contig(seq_coord)
                 aln_score = water.align(contig)
                 if aln_score > (identity * 0.5 * query.shape[0]):  # match score is 2
-                    out.append((aln_score, genome_name, contig_name))
+                    out.append((aln_score, genome_name, contig_name, contig_coord))
 
         return out
 

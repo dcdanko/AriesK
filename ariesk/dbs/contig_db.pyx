@@ -50,7 +50,7 @@ cdef class ContigDB(CoreDB):
     cpdef _build_tables(self):
         self.conn.execute(
             '''CREATE TABLE IF NOT EXISTS contigs (
-            seq_coord int, seq BLOB, genome_name text, contig_name text
+            seq_coord int, seq BLOB, genome_name text, contig_name text, contig_coord int
             )'''
         )
         self.conn.execute(
@@ -70,10 +70,10 @@ cdef class ContigDB(CoreDB):
     def get_all_contigs(self):
         cdef list out = []
         cdef const npc.uint8_t[:] contig
-        for cid, contig, _, _ in self.conn.execute('SELECT * FROM contigs'):
+        for cid, contig, genome_name, contig_name, contig_coord in self.conn.execute('SELECT * FROM contigs'):
             contig = np.frombuffer(contig, dtype=np.uint8)
             kmer = decode_kmer(contig)
-            out.append((cid, kmer))
+            out.append((cid, kmer, genome_name, contig_name, contig_coord))
         return out
 
     cpdef list get_coords(self, int centroid_id):
@@ -89,20 +89,21 @@ cdef class ContigDB(CoreDB):
         if seq_coord in self.contig_cache:
             return self.contig_cache[seq_coord]
         packed = [el for el in self.conn.execute(
-            'SELECT seq, genome_name, contig_name FROM contigs WHERE seq_coord=?', (seq_coord,)
+            'SELECT seq, genome_name, contig_name, contig_coord FROM contigs WHERE seq_coord=?', (seq_coord,)
         )][0]
         cdef const npc.uint8_t [:] contig = packed[0]
         cdef str genome_name = packed[1]
         cdef str contig_name = packed[2]
+        cdef int contig_coord = packed[3]
         contig = np.frombuffer(contig, dtype=np.uint8)
-        cdef tuple out = (genome_name, contig_name, np.copy(contig))
+        cdef tuple out = (genome_name, contig_name, contig_coord, np.copy(contig))
         self.contig_cache[seq_coord] = out
         return out
 
-    cdef add_contig_seq(self, str genome_name, str contig_name, int seq_coord, npc.uint8_t[:] contig_section):
+    cdef add_contig_seq(self, str genome_name, str contig_name, int seq_coord, int contig_coord, npc.uint8_t[:] contig_section):
         self.conn.execute(
-            'INSERT INTO contigs VALUES (?,?,?,?)',
-            (seq_coord, np.array(contig_section, dtype=np.uint8).tobytes(), genome_name, contig_name)
+            'INSERT INTO contigs VALUES (?,?,?,?,?)',
+            (seq_coord, np.array(contig_section, dtype=np.uint8).tobytes(), genome_name, contig_name, contig_coord)
         )
 
     cdef add_coord_to_centroid(self, int centroid_id, int seq_coord):
@@ -125,21 +126,13 @@ cdef class ContigDB(CoreDB):
         cdef int i, seq_coord, centroid_id
         for i in range(0, contig.shape[0] - self.ramifier.k + 1, gap):
             kmer = contig[i:i + self.ramifier.k]
-            try:
-                centroid = np.floor(self.ramifier.c_ramify(kmer) / self.box_side_len, casting='safe')
-            except IndexError:
-                print()
-                print(genome_name)
-                print(contig_name)
-                print(np.array(kmer))
-                print(decode_kmer(kmer))
-                raise
+            centroid = np.floor(self.ramifier.c_ramify(kmer) / self.box_side_len, casting='safe')
             centroid_id = self.add_centroid(centroid)
             seq_coord = offset + (i // self.seq_block_len)
             self.add_coord_to_centroid(centroid_id, seq_coord)
             if i % self.seq_block_len == 0:
                 self.add_contig_seq(
-                    genome_name, contig_name, seq_coord,
+                    genome_name, contig_name, seq_coord, i,
                     contig[i:min(i + self.seq_block_len, contig.shape[0])]
                 )
 
@@ -185,7 +178,7 @@ cdef class ContigDB(CoreDB):
             read = getdelim(&line, &l, b'>', cfile)
             if read == -1: break
             seq = encode_seq_from_buffer(line, l)
-            self.add_contig(filename, str(header), seq)
+            self.add_contig(filename, str(header).strip()[1:], seq)
             n_added += 1
             header = NULL
             line = NULL  # I don't understand why this line is necessary but

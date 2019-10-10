@@ -7,11 +7,20 @@ from time import clock
 
 from ariesk.grid_searcher import GridCoverSearcher
 from ariesk.dbs.kmer_db import GridCoverDB
-
+from ariesk.dbs.contig_db import ContigDB
 
 @click.group('stats')
 def stats_cli():
     pass
+
+
+@stats_cli.command('dump-contigs')
+@click.option('-o', '--outfile', default='-', type=click.File('w'))
+@click.argument('contig_db', type=click.Path())
+def cli_dump_kmers(outfile, cluster_ids, contig_db):
+    grid = ContigDB.load_from_filepath(contig_db)
+    for cid, kmer, genome_name, contig_name, contig_coord in grid.get_all_contigs():
+        print(f'{cid} {genome_name} {contig_name} {contig_coord} {kmer}', file=outfile)
 
 
 @stats_cli.command('cover-stats')

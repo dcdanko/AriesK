@@ -46,15 +46,15 @@ def search_contig(verbose, radius, seq_identity, kmer_fraction, outfile, contig_
     searcher = ContigSearcher.from_filepath(contig_db, logger=logger)
     for contig in contigs:
         min_time = 1000 * 1000
-        for _ in range(3):  # for testing
+        for _ in range(1):  # for testing
             start = time()
             hits = searcher.py_search(contig, radius, kmer_fraction, seq_identity)
             elapsed = time() - start
             if elapsed < min_time:
                 min_time = elapsed
         click.echo(f'Search complete in {min_time:.5}s')
-        for score, genome_name, contig_name in hits:
-            print(f'{score} {contig} {genome_name} {contig_name}', file=outfile)
+        for score, genome_name, contig_name, contig_coord in hits:
+            print(f'{score} {genome_name} {contig_name} {contig_coord} {contig}', file=outfile)
 
 
 @search_cli.command('contig-fasta')
@@ -70,14 +70,14 @@ def search_contig(verbose, radius, seq_identity, kmer_fraction, outfile, contig_
     if verbose:
         logger = TimingLogger(lambda el: click.echo(el, err=True)).log
     searcher = ContigSearcher.from_filepath(contig_db, logger=logger)
-    for _ in range(3):
+    for _ in range(1):
         start = time()
         all_hits = searcher.search_contigs_from_fasta(fasta, radius, kmer_fraction, seq_identity)
         elapsed = time() - start
         click.echo(f'Search complete in {elapsed:.5}s')
     for contig, hits in all_hits.items():
-        for score, genome_name, contig_name in hits:
-            print(f'{score} {contig} {genome_name} {contig_name}', file=outfile)
+        for score, genome_name, contig_name, contig_coord in hits:
+            print(f'{score} {genome_name} {contig_name} {contig_coord} {contig}', file=outfile)
 
 
 @search_cli.command('seq')
