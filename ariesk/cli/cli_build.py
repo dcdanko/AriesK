@@ -6,6 +6,7 @@ from shutil import copyfile
 from os.path import isfile
 from os import environ
 from sys import stderr
+import sqlite3
 
 from ariesk.ram import (
     StatisticalRam,
