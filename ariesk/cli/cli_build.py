@@ -14,6 +14,8 @@ from ariesk.ram import (
 from ariesk.grid_builder import GridCoverBuilder
 from ariesk.grid_searcher import GridCoverSearcher
 from ariesk.dbs.kmer_db import GridCoverDB
+from ariesk.dbs.contig_db import ContigDB
+
 from ariesk.pre_db import PreDB
 from ariesk.utils.parallel_build import coordinate_parallel_build
 
