@@ -4,9 +4,12 @@
 
 cimport numpy as npc
 import numpy as np
-
+from libc.stdio cimport *
+from posix.stdio cimport * # FILE, fopen, fclose
+from libc.stdlib cimport malloc, free
 from scipy.spatial import cKDTree
 # from scipy.spatial cimport cKDTree as cKDTree_t
+# from ariesk.ckdtree cimport cKDTree
 from skbio.alignment import StripedSmithWaterman
 # from skbio.alignment cimport StripedSmithWaterman as StripedSmithWaterman_t
 
@@ -16,6 +19,7 @@ from ariesk.utils.kmers cimport (
     hamming_dist,
     encode_kmer,
     decode_kmer,
+    encode_seq_from_buffer,
 )
 
 
@@ -80,12 +84,38 @@ cdef class ContigSearcher:
         cdef list centroid_hits
         cdef int hit
         cdef dict counts = {}
-        for centroid_hits in self.tree.query_ball_tree(query_tree, coarse_radius + self.radius):
+        for centroid_hits in query_tree.query_ball_tree(self.tree, coarse_radius + self.radius):
             for hit in centroid_hits:
                 for seq_coord in self.db.get_coords(hit):
                     counts[seq_coord] = 1 + counts.get(seq_coord, 0)
         return counts
 
+    def search_contigs_from_fasta(self, str filename, double coarse_radius, double kmer_fraction):
+        cdef FILE * cfile = fopen(filename.encode("UTF-8"), "rb")
+        if cfile == NULL:
+            raise FileNotFoundError(2, "No such file or directory: '%s'" % filename)
+
+        cdef int n_added = 0
+        cdef char * line = NULL
+        cdef char * header = NULL
+        cdef size_t l = 0
+        cdef ssize_t read
+        cdef size_t n_kmers_in_line, i
+        cdef npc.uint8_t[:] seq
+        cdef dict out = {}
+        while True:
+            getline(&header, &l, cfile)
+            read = getdelim(&line, &l, b'>', cfile)
+            if read == -1: break
+            seq = encode_seq_from_buffer(line, l)
+            out[decode_kmer(seq)] = self.search(seq, coarse_radius, kmer_fraction)
+            n_added += 1
+            header = NULL
+            line = NULL  # I don't understand why this line is necessary but
+                         # without it the program throws a strange error: 
+                         # `pointer being realloacted was not allocated`
+        fclose(cfile)
+        return out
 
     @classmethod
     def from_filepath(cls, filepath, logger=None):
