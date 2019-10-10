@@ -157,8 +157,8 @@ def build_contig_cover_fasta(radius, dimension, threads, outfile, rotation, fast
     environ['MKL_NUM_THREADS'] = f'{threads}'
     fasta_list = [line.strip() for line in fasta_list]
     ramifier = RotatingRamifier.from_file(dimension, rotation)
-    grid = ContigDB.from_filepath(
-        sqlite3.connect(outfile), ramifier, radius
+    grid = ContigDB(
+        sqlite3.connect(outfile), ramifier=ramifier, box_side_len=radius
     )
     start = time()
     with click.progressbar(fasta_list) as fastas:
