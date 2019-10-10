@@ -53,8 +53,8 @@ def search_contig(verbose, radius, seq_identity, kmer_fraction, outfile, contig_
             if elapsed < min_time:
                 min_time = elapsed
         click.echo(f'Search complete in {min_time:.5}s')
-        for score, hit in hits:
-            print(f'{score} {contig} {hit}', file=outfile)
+        for score, genome_name, contig_name in hits:
+            print(f'{score} {contig} {genome_name} {contig_name}', file=outfile)
 
 
 @search_cli.command('contig-fasta')
@@ -76,8 +76,8 @@ def search_contig(verbose, radius, seq_identity, kmer_fraction, outfile, contig_
         elapsed = time() - start
         click.echo(f'Search complete in {elapsed:.5}s')
     for contig, hits in all_hits.items():
-        for score, hit in hits:
-            print(f'{score} {contig} {hit}', file=outfile)
+        for score, genome_name, contig_name in hits:
+            print(f'{score} {contig} {genome_name} {contig_name}', file=outfile)
 
 
 @search_cli.command('seq')

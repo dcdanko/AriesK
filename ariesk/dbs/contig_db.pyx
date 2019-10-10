@@ -88,13 +88,16 @@ cdef class ContigDB(CoreDB):
     cpdef npc.uint8_t[:] get_contig(self, int seq_coord):
         if seq_coord in self.contig_cache:
             return self.contig_cache[seq_coord]
-        cdef const npc.uint8_t [:] contig = [el[0] for el in self.conn.execute(
-            'SELECT seq FROM contigs WHERE seq_coord=?', (seq_coord,)
+        packed = [el[0] for el in self.conn.execute(
+            'SELECT seq, genome_name, contig_name FROM contigs WHERE seq_coord=?', (seq_coord,)
         )][0]
+        cdef const npc.uint8_t [:] contig = packed[0]
+        cdef str genome_name = packed[1]
+        cdef str contig_name = packed[2]
         contig = np.frombuffer(contig, dtype=np.uint8)
         cdef npc.uint8_t[:] out = np.copy(contig)
         self.contig_cache[seq_coord] = out
-        return out
+        return (genome_name, contig_name, out)
 
     cdef add_contig_seq(self, str genome_name, str contig_name, int seq_coord, npc.uint8_t[:] contig_section):
         self.conn.execute(
