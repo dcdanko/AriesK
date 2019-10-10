@@ -7,7 +7,7 @@ cimport numpy as npc
 
 
 cdef npc.uint8_t [::] encode_kmer(str kmer):
-    cdef dict base_map = {'A': 0., 'C': 1., 'G': 2, 'T': 3}
+    cdef dict base_map = {'A': 0., 'C': 1., 'G': 2, 'T': 3, 'N': 4}
     cdef npc.uint8_t [::] binary_kmer = np.array(
         [base_map[base] for base in kmer], dtype=np.uint8
     )
@@ -30,6 +30,8 @@ cdef npc.uint8_t [::] encode_kmer_from_buffer(char * buf, int k):
             kmer[i] = 2
         elif c == b'T':
             kmer[i] = 3
+        elif c == b'N':
+            kmer[i] = 4
         elif c == b'\n':
             i -= 1  # special case for line wrapping in fasta
         i += 1
@@ -53,6 +55,8 @@ cdef npc.uint8_t [::] encode_seq_from_buffer(char * buf, int max_len):
             seq[i] = 2
         elif c == b'T':
             seq[i] = 3
+        elif c == b'N':
+            kmer[i] = 4
         elif c == b'\n':
             i -= 1  # special case for line wrapping in fasta
         i += 1
@@ -62,7 +66,7 @@ cdef npc.uint8_t [::] encode_seq_from_buffer(char * buf, int max_len):
 
 
 cdef str decode_kmer(const npc.uint8_t [:] binary_kmer):
-    cdef dict base_map = {0: 'A', 1: 'C', 2: 'G', 3: 'T'}
+    cdef dict base_map = {0: 'A', 1: 'C', 2: 'G', 3: 'T', 4: 'N'}
     cdef int i
     cdef str out = ''
     for i in range(binary_kmer.shape[0]):

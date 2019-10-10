@@ -29,11 +29,13 @@ cdef class Ramifier:
         self.kmer_matrix = np.zeros((self.k, 4), dtype=np.uint8)
 
     cdef npc.ndarray c_ramify(self, npc.uint8_t [::] binary_kmer):
-        cdef int i, j
+        cdef int i, j, k
         for i in range(self.k):
             for j in range(4):
                 self.kmer_matrix[i, j] = 0
-            self.kmer_matrix[i, binary_kmer[i]] = 1
+            k = binary_kmer[i]
+            if k <= 3:  # leave 'N' blank
+                self.kmer_matrix[i, k] = 1
         cdef npc.ndarray rft = abs(np.dot(self.rs_matrix, self.kmer_matrix)).flatten()
         return rft
 
