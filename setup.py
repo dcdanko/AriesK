@@ -29,6 +29,7 @@ extensions = [
 
         ('ariesk/grid_builder.pyx', 'ariesk.grid_builder'),
         ('ariesk/grid_searcher.pyx', 'ariesk.grid_searcher'),
+        ('ariesk/contig_searcher.pyx', 'ariesk.contig_searcher'),
         ('ariesk/linear_searcher.pyx', 'ariesk.linear_searcher'),
         ('ariesk/dbs/kmer_db.pyx', 'ariesk.dbs.kmer_db'),
         ('ariesk/dbs/core_db.pyx', 'ariesk.dbs.core_db'),

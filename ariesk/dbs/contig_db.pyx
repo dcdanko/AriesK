@@ -71,6 +71,18 @@ cdef class ContigDB(CoreDB):
             out.append((cid, kmer))
         return out
 
+    cpdef list get_coords(self, int centroid_id):
+        return [el[0] for el in self.conn.execute(
+            'SELECT seq_coord FROM seq_coords WHERE centroid_id=?', (centroid_id,)
+        )]
+
+    cpdef npc.uint8_t[:] get_contig(self, int seq_coord):
+        cdef const npc.uint8_t [:] contig = [el[0] for el in self.conn.execute(
+            'SELECT seq FROM contigs WHERE seq_coord=?', (seq_coord,)
+        )][0]
+        contig = np.frombuffer(contig, dtype=np.uint8)
+        return np.copy(contig)
+
     cdef add_contig_seq(self, str genome_name, str contig_name, int seq_coord, npc.uint8_t[:] contig_section):
         self.conn.execute(
             'INSERT INTO contigs VALUES (?,?,?,?)',
@@ -116,13 +128,14 @@ cdef class ContigDB(CoreDB):
                 )
             else:
                 self.conn.executemany(
-                    'INSERT INTO centroids VALUES (?,?)',
+                    'INSERT INTO seq_coords VALUES (?,?)',
                     self.coord_buffer[:self.coord_buffer_filled]
                 )
             self.coord_buffer_filled = 0
 
     def commit(self):
         self._clear_coord_buffer()
+        self._clear_buffer()
         self.conn.commit()
 
     @classmethod
