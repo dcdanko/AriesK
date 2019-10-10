@@ -30,7 +30,7 @@ cdef class ContigSearcher:
         self.tree = cKDTree(self.centroid_rfts)
         self.logger = logger
         self.logging = False
-        if self.logger:
+        if self.logger is not None:
             self.logging = True
 
     def py_search(self, str query, double coarse_radius, double kmer_fraction):
