@@ -112,7 +112,13 @@ cdef class ContigDB(CoreDB):
         cdef int i, seq_coord, centroid_id
         for i in range(0, contig.shape[0] - self.ramifier.k + 1, gap):
             kmer = contig[i:i + self.ramifier.k]
-            centroid = np.floor(self.ramifier.c_ramify(kmer) / self.box_side_len, casting='safe')
+            try:
+                centroid = np.floor(self.ramifier.c_ramify(kmer) / self.box_side_len, casting='safe')
+            except IndexError:
+                print(genome_name)
+                print(contig_name)
+                print(decode_kmer(kmer))
+                raise
             centroid_id = self.add_centroid(centroid)
             seq_coord = offset + (i // self.seq_block_len)
             self.add_coord_to_centroid(centroid_id, seq_coord)
