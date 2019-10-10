@@ -13,6 +13,8 @@ cdef class ContigDB(CoreDB):
     cdef public set genomes_added
     cdef public int coord_buffer_filled
     cdef public list coord_buffer
+    cdef public dict contig_cache
+    cdef public dict centroid_id_cache
 
     cpdef _build_tables(self)
     cpdef _build_indices(self)

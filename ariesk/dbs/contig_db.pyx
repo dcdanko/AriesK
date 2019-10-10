@@ -27,6 +27,8 @@ cdef class ContigDB(CoreDB):
         self.genomes_added = set()
         self.coord_buffer_filled = 0
         self.coord_buffer = [None] * BUFFER_SIZE
+        self.contig_cache = {}
+        self.centroid_id_cache = {}
         self._build_tables()
         self._build_indices()
         try:
@@ -75,16 +77,24 @@ cdef class ContigDB(CoreDB):
         return out
 
     cpdef list get_coords(self, int centroid_id):
-        return [el[0] for el in self.conn.execute(
+        if centroid_id in self.centroid_id_cache:
+            return self.centroid_id_cache[centroid_id]
+        out = [el[0] for el in self.conn.execute(
             'SELECT seq_coord FROM seq_coords WHERE centroid_id=?', (centroid_id,)
         )]
+        self.centroid_id_cache[centroid_id] = out
+        return out
 
     cpdef npc.uint8_t[:] get_contig(self, int seq_coord):
+        if seq_coord in self.contig_cache:
+            return self.contig_cache[seq_coord]
         cdef const npc.uint8_t [:] contig = [el[0] for el in self.conn.execute(
             'SELECT seq FROM contigs WHERE seq_coord=?', (seq_coord,)
         )][0]
         contig = np.frombuffer(contig, dtype=np.uint8)
-        return np.copy(contig)
+        cdef npc.uint8_t[:] out = np.copy(contig)
+        self.contig_cache[seq_coord] = out
+        return out
 
     cdef add_contig_seq(self, str genome_name, str contig_name, int seq_coord, npc.uint8_t[:] contig_section):
         self.conn.execute(
