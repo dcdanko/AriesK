@@ -5,8 +5,11 @@
 import sqlite3
 import numpy as np
 cimport numpy as npc
+from libc.stdio cimport *
+from posix.stdio cimport * # FILE, fopen, fclose
+from libc.stdlib cimport malloc, free
 
-from ariesk.utils.kmers cimport encode_kmer, decode_kmer
+from ariesk.utils.kmers cimport encode_kmer, decode_kmer, encode_seq_from_buffer
 from ariesk.dbs.core_db cimport CoreDB
 
 SEQ_BLOCK_LEN = 10 * 1000
@@ -107,8 +110,10 @@ cdef class ContigDB(CoreDB):
         cdef double[:] centroid
         cdef tuple centroid_key
         cdef int i, seq_coord, centroid_id
+        print(decode_kmer(contig))
         for i in range(0, contig.shape[0] - self.ramifier.k + 1, gap):
             kmer = contig[i:i + self.ramifier.k]
+            print(decode_kmer(kmer))
             centroid = np.floor(self.ramifier.c_ramify(kmer) / self.box_side_len, casting='safe')
             centroid_id = self.add_centroid(centroid)
             seq_coord = offset + (i // self.seq_block_len)
@@ -143,3 +148,29 @@ cdef class ContigDB(CoreDB):
         """Return a GridCoverDB."""
         connection = sqlite3.connect(filepath, cached_statements=10 * 1000)
         return ContigDB(connection)
+
+    def fast_add_kmers_from_fasta(self, str filename):
+        cdef FILE * cfile = fopen(filename.encode("UTF-8"), "rb")
+        if cfile == NULL:
+            raise FileNotFoundError(2, "No such file or directory: '%s'" % filename)
+
+        cdef int n_added = 0
+        cdef char * line = NULL
+        cdef char * header = NULL
+        cdef size_t l = 0
+        cdef ssize_t read
+        cdef size_t n_kmers_in_line, i
+        cdef npc.uint8_t[:] seq
+        while True:
+            getline(&header, &l, cfile)
+            read = getdelim(&line, &l, b'>', cfile)
+            if read == -1: break
+            seq = encode_seq_from_buffer(line, l)
+            self.add_contig(filename, str(header), seq)
+            n_added += 1
+            header = NULL
+            line = NULL  # I don't understand why this line is necessary but
+                         # without it the program throws a strange error: 
+                         # `pointer being realloacted was not allocated`
+        fclose(cfile)
+        return n_added

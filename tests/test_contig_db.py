@@ -15,6 +15,7 @@ from ariesk.ram import RotatingRamifier
 KMER_TABLE = join(dirname(__file__), 'small_31mer_table.csv')
 KMER_ROTATION = join(dirname(__file__), '../data/rotation_minikraken.json')
 KMER_31 = 'ATCGATCGATCGATCGATCGATCGATCGATCG'
+KMER_FASTA = join(dirname(__file__), 'small_fasta.fa')
 
 
 def random_kmer(k):
@@ -32,6 +33,15 @@ class TestContigDB(TestCase):
         contig_db.commit()
         stored = contig_db.get_all_contigs()
         self.assertEqual(len(stored), 2)
+
+    def test_build_contig_db_from_fasta(self):
+        conn = sqlite3.connect(':memory:')
+        ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
+        contig_db = ContigDB(conn, ramifier=ramifier, box_side_len=0.5)
+        contig_db.fast_add_kmers_from_fasta(KMER_FASTA)
+        contig_db.commit()
+        stored = contig_db.get_all_contigs()
+        self.assertEqual(len(stored), 3)
 
     def test_search_contig_db(self):
         conn = sqlite3.connect(':memory:')

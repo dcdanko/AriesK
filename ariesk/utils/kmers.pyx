@@ -37,6 +37,29 @@ cdef npc.uint8_t [::] encode_kmer_from_buffer(char * buf, int k):
     return kmer
 
 
+cdef npc.uint8_t [::] encode_seq_from_buffer(char * buf, int max_len):
+    cdef npc.uint8_t[::] seq = np.ndarray((max_len,), dtype=np.uint8)
+    cdef int i = 0
+    cdef int j = 0
+    while j < max_len:
+        c = buf[0]
+        if c == 0:
+            break  # this means the buffer did not have enough to read
+        if c == b'A':
+            seq[i] = 0
+        elif c == b'C':
+            seq[i] = 1
+        elif c == b'G':
+            seq[i] = 2
+        elif c == b'T':
+            seq[i] = 3
+        elif c == b'\n':
+            i -= 1  # special case for line wrapping in fasta
+        i += 1
+        j += 1
+        buf += 1
+    return seq[:i - 1]
+
 
 cdef str decode_kmer(const npc.uint8_t [:] binary_kmer):
     cdef dict base_map = {0: 'A', 1: 'C', 2: 'G', 3: 'T'}
@@ -150,3 +173,34 @@ cdef double bounded_needle_fast(npc.uint8_t[::] k1, npc.uint8_t[::] k2, npc.uint
     if normalize:
         final_score /= k1.shape[0]
     return final_score
+
+cdef double bounded_water(npc.uint8_t[::] target, npc.uint8_t[::] query, npc.uint8_t bound):
+    """Return NW alignment using pre-allocated RAM."""
+    cdef double[:, :] score = np.zeros((target.shape[0], query.shape[0]))
+    cdef double match_score = -1
+    cdef double mismatch_penalty = 1
+    cdef double gap_penalty = 1
+    cdef int i, j, o
+    for i in range(target.shape[0] + 1):
+        for o in range(bound + 1):
+            j = i + o
+            if j < (target.shape[0] + 1):
+                score[i][j] = 0
+                score[j][i] = 0
+
+    min_score = 1000
+    for i in range(1, target.shape[0] + 1):
+        for o in range(-bound, bound + 1):
+            j = i + o
+            if j < (target.shape[0] + 1):
+                if target[i - 1] == query[j - 1]:
+                    match = score[i - 1][j - 1]
+                else:
+                    match = score[i - 1][j - 1] + mismatch_penalty
+                delete = score[i - 1][j] + gap_penalty
+                insert = score[i][j - 1] + gap_penalty
+                score[i][j] = min(match, delete, insert, 0)
+                if score[i][j] < min_score:
+                    min_score = score[i][j]
+
+    return min_score + query.shape[0]
