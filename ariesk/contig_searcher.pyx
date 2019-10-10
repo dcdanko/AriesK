@@ -10,9 +10,10 @@ from libc.stdlib cimport malloc, free
 from scipy.spatial import cKDTree
 # from scipy.spatial cimport cKDTree as cKDTree_t
 # from ariesk.ckdtree cimport cKDTree
-from skbio.alignment import StripedSmithWaterman
+#from skbio.alignment import StripedSmithWaterman
 # from skbio.alignment cimport StripedSmithWaterman as StripedSmithWaterman_t
-
+# from ariesk.lib_ssw cimport *
+from ariesk.ssw cimport StripedSmithWaterman
 from ariesk.dbs.contig_db cimport ContigDB
 from ariesk.utils.kmers cimport (
     needle_dist,
@@ -56,16 +57,22 @@ cdef class ContigSearcher:
         cdef dict counts = self.coarse_search(n_kmers, query, coarse_radius)
         if self.logging:
             self.logger(f'Coarse search complete. {len(counts)} candidates.')
-        cdef object water = StripedSmithWaterman(decode_kmer(query), score_only=True)
+        out = self.fine_search(query, n_kmers, counts, kmer_fraction)
+        if self.logging:
+            self.logger(f'Fine search complete. {len(out)} passed.')
+        return out
+
+    cdef list fine_search(self, npc.uint8_t[:] query, int n_kmers, dict counts, double kmer_fraction):
+        cdef StripedSmithWaterman water = StripedSmithWaterman(query, score_only=True)
         cdef list out = []
+        cdef double aln_score
         for seq_coord, count in counts.items():
             if count > (n_kmers * kmer_fraction):
                 contig = self.db.get_contig(seq_coord)
-                aln = water(decode_kmer(contig))
-                if aln.optimal_alignment_score > (0.5 * 0.5 * query.shape[0]):  # match score is 2, 50% identity
-                    out.append((aln.optimal_alignment_score, contig))
-        if self.logging:
-            self.logger(f'Fine search complete. {len(out)} passed.')
+                aln_score = water.align(contig)
+                if aln_score > (0.5 * 0.5 * query.shape[0]):  # match score is 2, 50% identity
+                    out.append((aln_score, contig))
+
         return out
 
     cdef dict coarse_search(self, int n_kmers, npc.uint8_t[:] query, double coarse_radius):

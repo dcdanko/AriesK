@@ -12,12 +12,15 @@ extra_link_args = ['-fopenmp']
 
 def make_ext(args):
     path, name = args
+    if isinstance(path, str):
+        path = [path]
+    lang = 'c++'
     return Extension(
         name,
-        [path],
+        path,
         include_dirs=[numpy.get_include()],
         extra_compile_args=extra_compile_args,
-        language='c++',
+        language=lang,
     )
 
 
@@ -38,7 +41,26 @@ extensions = [
         ('ariesk/cluster.pyx', 'ariesk.cluster'),
         ('ariesk/ram.pyx', 'ariesk.ram'),
 
+        #('ariesk/ssw.pyx', 'ariesk.ssw'),
     ]
+] + [
+    Extension(
+        'ariesk.ssw',
+        ['ariesk/ssw.pyx'],
+        include_dirs=[numpy.get_include(), 'ariesk/_lib/ssw.c'],
+        extra_compile_args=extra_compile_args,
+        extra_link_args=['-Lariesk/_lib/ssw.c'],
+        language='c++',
+    ),
+    # Extension(
+    #     'ariesk.lib_ssw',
+    #     ['ariesk/_lib/ssw.c'],
+    #     include_dirs=[numpy.get_include(), 'ariesk/_lib/ssw.c'],
+    #     extra_compile_args=["-O3", "-ffast-math", "-march=native", "-fopenmp", '-Wno-error=declaration-after-statement'],
+    #     extra_link_args=['-Lariesk/_lib/ssw.c'],
+    #     language='c',
+    # )
+
 ]
 
 
@@ -72,5 +94,5 @@ setuptools.setup(
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
     ],
-    ext_modules=cythonize(extensions)
+    ext_modules=cythonize(extensions),
 )
