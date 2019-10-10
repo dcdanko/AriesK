@@ -71,7 +71,7 @@ def search_contig(verbose, radius, kmer_fraction, outfile, contig_db, fasta):
     start = time()
     all_hits = searcher.search_contigs_from_fasta(fasta, radius, kmer_fraction)
     elapsed = time() - start
-    click.echo(f'Search complete in {min_time:.5}s')
+    click.echo(f'Search complete in {elapsed:.5}s')
     for contig, hits in all_hits.items():
         for score, hit in hits:
             print(f'{score} {contig} {hit}', file=outfile)
