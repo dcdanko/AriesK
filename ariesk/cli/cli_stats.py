@@ -15,11 +15,14 @@ def stats_cli():
 
 
 @stats_cli.command('dump-contigs')
+@click.option('-s/-n', '--seq/--no-seq', default=False)
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
 @click.argument('contig_db', type=click.Path())
-def cli_dump_contigs(outfile, contig_db):
+def cli_dump_contigs(seq, outfile, contig_db):
     grid = ContigDB.load_from_filepath(contig_db)
     for cid, kmer, genome_name, contig_name, contig_coord in grid.get_all_contigs():
+        if not seq:
+            kmer = ''
         print(f'{cid} {genome_name} {contig_name} {contig_coord} {kmer}', file=outfile)
 
 
