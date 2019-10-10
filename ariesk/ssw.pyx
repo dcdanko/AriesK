@@ -1,3 +1,6 @@
+# cython: profile=True
+# cython: linetrace=True
+# cython: language_level=3
 
 # -----------------------------------------------------------------------------
 #  Copyright (c) 2013--, scikit-bio development team.
@@ -62,6 +65,7 @@ cdef class StripedSmithWaterman:
         self.score_filter = 0 if score_filter is None else score_filter
         self.query_sequence = query_sequence
         self.matrix = self._build_match_matrix(match_score, mismatch_score)
+        self.bit_flag = self._get_bit_flag(override_skip_babp, score_only)
         self.mask_length = mask_length
         if mask_auto and (len(query_sequence) // 2) > mask_length:
             self.mask_length = len(query_sequence) // 2
@@ -92,6 +96,21 @@ cdef class StripedSmithWaterman:
         pass
         if self.profile is not NULL:
             init_destroy(self.profile)
+
+
+    def _get_bit_flag(self, override_skip_babp, score_only):
+        bit_flag = 0
+        if score_only:
+            return bit_flag
+        if override_skip_babp:
+            bit_flag = bit_flag | 0x8
+        if self.distance_filter != 0:
+            bit_flag = bit_flag | 0x4
+        if self.score_filter != 0:
+            bit_flag = bit_flag | 0x2
+        if bit_flag == 0 or bit_flag == 8:
+            bit_flag = bit_flag | 0x1
+        return bit_flag
 
 
     cdef cnp.int8_t[:] _build_match_matrix(self, match_score, mismatch_score):
