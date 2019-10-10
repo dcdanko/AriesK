@@ -178,8 +178,7 @@ cdef double bounded_needle_fast(npc.uint8_t[::] k1, npc.uint8_t[::] k2, npc.uint
         final_score /= k1.shape[0]
     return final_score
 
-cdef double bounded_water(npc.uint8_t[::] target, npc.uint8_t[::] query, npc.uint8_t bound):
-    """Return NW alignment using pre-allocated RAM."""
+cdef double water(npc.uint8_t[::] target, npc.uint8_t[::] query, npc.uint8_t bound):
     cdef double[:, :] score = np.zeros((target.shape[0], query.shape[0]))
     cdef double match_score = -1
     cdef double mismatch_penalty = 1

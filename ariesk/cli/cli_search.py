@@ -52,8 +52,8 @@ def search_contig(verbose, radius, kmer_fraction, outfile, contig_db, contigs):
             if elapsed < min_time:
                 min_time = elapsed
         click.echo(f'Search complete in {min_time:.5}s')
-        for hit in hits:
-            print(f'{contig} {hit}', file=outfile)
+        for score, hit in hits:
+            print(f'{score} {contig} {hit}', file=outfile)
 
 
 @search_cli.command('seq')

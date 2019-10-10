@@ -6,7 +6,9 @@ cimport numpy as npc
 import numpy as np
 
 from scipy.spatial import cKDTree
-# from scipy.spatial cimport cKDTree_t
+# from scipy.spatial cimport cKDTree as cKDTree_t
+from skbio.alignment import StripedSmithWaterman
+# from skbio.alignment cimport StripedSmithWaterman as StripedSmithWaterman_t
 
 from ariesk.dbs.contig_db cimport ContigDB
 from ariesk.utils.kmers cimport (
@@ -23,11 +25,13 @@ cdef class ContigSearcher:
     cdef public object tree
     cdef public object logger
     cdef public bint logging
+    cdef public float radius
 
     def __cinit__(self, contig_db, logger=None):
         self.db = contig_db
         self.centroid_rfts = self.db.c_get_centroids()
         self.tree = cKDTree(self.centroid_rfts)
+        self.radius = (self.db.ramifier.d ** (0.5)) * self.db.box_side_len
         self.logger = logger
         self.logging = False
         if self.logger is not None:
@@ -35,7 +39,7 @@ cdef class ContigSearcher:
 
     def py_search(self, str query, double coarse_radius, double kmer_fraction):
         return [
-            decode_kmer(el)
+            (el[0], decode_kmer(el[1]))
             for el in self.search(
                 encode_kmer(query), coarse_radius, kmer_fraction
             )
@@ -48,11 +52,13 @@ cdef class ContigSearcher:
         cdef dict counts = self.coarse_search(n_kmers, query, coarse_radius)
         if self.logging:
             self.logger(f'Coarse search complete. {len(counts)} candidates.')
+        cdef object water = StripedSmithWaterman(decode_kmer(query), score_only=True)
         cdef list out = []
         for seq_coord, count in counts.items():
             if count > (n_kmers * kmer_fraction):
                 contig = self.db.get_contig(seq_coord)
-                out.append(contig)
+                aln = water(decode_kmer(contig))
+                out.append((aln.optimal_alignment_score, contig))
         if self.logging:
             self.logger(f'Fine search complete. {len(out)} passed.')
         return out
@@ -73,7 +79,7 @@ cdef class ContigSearcher:
         cdef list centroid_hits
         cdef int hit
         cdef dict counts = {}
-        for centroid_hits in self.tree.query_ball_tree(query_tree, coarse_radius):
+        for centroid_hits in self.tree.query_ball_tree(query_tree, coarse_radius + self.radius):
             for hit in centroid_hits:
                 for seq_coord in self.db.get_coords(hit):
                     counts[seq_coord] = 1 + counts.get(seq_coord, 0)
