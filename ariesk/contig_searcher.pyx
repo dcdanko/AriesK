@@ -58,7 +58,8 @@ cdef class ContigSearcher:
             if count > (n_kmers * kmer_fraction):
                 contig = self.db.get_contig(seq_coord)
                 aln = water(decode_kmer(contig))
-                out.append((aln.optimal_alignment_score, contig))
+                if aln.optimal_alignment_score > (0.5 * 0.5 * query.shape[0]):  # match score is 2, 50% identity
+                    out.append((aln.optimal_alignment_score, contig))
         if self.logging:
             self.logger(f'Fine search complete. {len(out)} passed.')
         return out
