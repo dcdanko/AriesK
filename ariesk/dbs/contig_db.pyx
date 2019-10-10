@@ -115,8 +115,10 @@ cdef class ContigDB(CoreDB):
             try:
                 centroid = np.floor(self.ramifier.c_ramify(kmer) / self.box_side_len, casting='safe')
             except IndexError:
+                print()
                 print(genome_name)
                 print(contig_name)
+                print(np.array(kmer))
                 print(decode_kmer(kmer))
                 raise
             centroid_id = self.add_centroid(centroid)
