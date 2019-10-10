@@ -31,9 +31,9 @@ cdef class ContigDB(CoreDB):
         self._build_indices()
         try:
             val = self.conn.execute('SELECT value FROM basics WHERE name=?', ('seq_block_len',))
-            self.seq_block_len = int(list(val)[0])
+            self.seq_block_len = int(list(val)[0][0])
             val = self.conn.execute('SELECT value FROM basics WHERE name=?', ('current_seq_coord',))
-            self.current_seq_coord = int(list(val)[0])
+            self.current_seq_coord = int(list(val)[0][0])
         except IndexError:
             self.seq_block_len = SEQ_BLOCK_LEN
             self.current_seq_coord = 0
