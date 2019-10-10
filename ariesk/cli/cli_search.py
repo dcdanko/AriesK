@@ -68,9 +68,10 @@ def search_contig(verbose, radius, kmer_fraction, outfile, contig_db, fasta):
     if verbose:
         logger = TimingLogger(lambda el: click.echo(el, err=True)).log
     searcher = ContigSearcher.from_filepath(contig_db, logger=logger)
-    start = time()
-    all_hits = searcher.search_contigs_from_fasta(fasta, radius, kmer_fraction)
-    elapsed = time() - start
+    for _ in range(3):
+        start = time()
+        all_hits = searcher.search_contigs_from_fasta(fasta, radius, kmer_fraction)
+        elapsed = time() - start
     click.echo(f'Search complete in {elapsed:.5}s')
     for contig, hits in all_hits.items():
         for score, hit in hits:
