@@ -161,6 +161,7 @@ def build_contig_cover_fasta(radius, dimension, threads, outfile, rotation, fast
     grid = ContigDB(
         sqlite3.connect(outfile), ramifier=ramifier, box_side_len=radius
     )
+    click.echo(f'Adding {len(fasta_list)} fastas.', err=True)
     start = time()
     with click.progressbar(fasta_list) as fastas:
         for fasta_filename in fastas:
