@@ -20,7 +20,8 @@ class TimingLogger:
 
     def log(self, msg):
         time_elapsed = time() - self.last_message_time
-        msg = f'[{time_elapsed:.5}s] {msg}'
+        time_elapsed *= 1000
+        msg = f'[{time_elapsed:.3}ms] {msg}'
         self.logger(msg)
         self.last_message_time = time()
 
