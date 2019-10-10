@@ -56,7 +56,7 @@ cdef npc.uint8_t [::] encode_seq_from_buffer(char * buf, int max_len):
         elif c == b'T':
             seq[i] = 3
         elif c == b'N':
-            kmer[i] = 4
+            seq[i] = 4
         elif c == b'\n':
             i -= 1  # special case for line wrapping in fasta
         i += 1
