@@ -11,6 +11,8 @@ from libc.stdlib cimport malloc, free
 
 from ariesk.utils.kmers cimport encode_kmer, decode_kmer, encode_seq_from_buffer
 from ariesk.dbs.core_db cimport CoreDB
+from ariesk.seed_align cimport get_target_kmers
+
 
 SEQ_BLOCK_LEN = 10 * 1000
 CONTIG_GAP = 2
@@ -28,6 +30,7 @@ cdef class ContigDB(CoreDB):
         self.coord_buffer_filled = 0
         self.coord_buffer = [None] * BUFFER_SIZE
         self.contig_cache = {}
+        self.contig_kmer_cache = {}
         self.centroid_id_cache = {}
         self._build_tables()
         self._build_indices()
@@ -99,6 +102,14 @@ cdef class ContigDB(CoreDB):
         cdef tuple out = (genome_name, contig_name, contig_coord, np.copy(contig))
         self.contig_cache[seq_coord] = out
         return out
+
+    cdef npc.uint32_t[:, :] get_contig_kmers(self, int seq_coord, int k):
+        if seq_coord in self.contig_kmer_cache:
+            return self.contig_kmer_cache[seq_coord]
+        _, _, _, contig = self.get_contig(seq_coord)
+        cdef npc.uint32_t[:, :] t_kmers = get_target_kmers(contig, k)
+        self.contig_kmer_cache[seq_coord] = t_kmers
+        return t_kmers
 
     cdef add_contig_seq(self, str genome_name, str contig_name, int seq_coord, int contig_coord, npc.uint8_t[:] contig_section):
         self.conn.execute(

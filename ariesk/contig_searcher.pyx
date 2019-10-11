@@ -22,6 +22,10 @@ from ariesk.utils.kmers cimport (
     decode_kmer,
     encode_seq_from_buffer,
 )
+from ariesk.seed_align cimport seed_and_extend, get_query_kmers
+
+K_LEN = 7
+K_GAP = 3
 
 
 cdef class ContigSearcher:
@@ -57,22 +61,27 @@ cdef class ContigSearcher:
         cdef dict counts = self.coarse_search(n_kmers, query, coarse_radius)
         if self.logging:
             self.logger(f'Coarse search complete. {len(counts)} candidates.')
-        out = self.fine_search(query, n_kmers, counts, kmer_fraction, identity)
+        cdef npc.uint64_t[:, :] q_kmers = get_query_kmers(query, K_LEN, K_GAP)
+        out = self.fine_search(query, q_kmers, K_LEN, n_kmers, counts, kmer_fraction, identity)
         if self.logging:
             self.logger(f'Fine search complete. {len(out)} passed.')
         return out
 
-    cdef list fine_search(self, npc.uint8_t[:] query, int n_kmers, dict counts, double kmer_fraction, double identity):
-        cdef StripedSmithWaterman water = StripedSmithWaterman(query, score_only=True)
+    cdef list fine_search(self,
+                          npc.uint8_t[:] query, npc.uint64_t[:, :] q_kmers,
+                          int k, int n_kmers, dict counts,
+                          double kmer_fraction, double identity):
         cdef list out = []
         cdef double aln_score
+        cdef npc.uint64_t[:, :] intervals
+        cdef npc.uint32_t[:, :] t_kmers
         for seq_coord, count in counts.items():
             if count > (n_kmers * kmer_fraction):
                 genome_name, contig_name, contig_coord, contig = self.db.get_contig(seq_coord)
-                aln_score = water.align(contig)
-                if aln_score > (identity * 0.5 * query.shape[0]):  # match score is 2
-                    out.append((aln_score, genome_name, contig_name, contig_coord))
-
+                t_kmers = self.db.get_contig_kmers(seq_coord, k)
+                intervals = seed_and_extend(query, contig, q_kmers, t_kmers, k)
+                if intervals.shape[0] > 0:
+                    out.append((genome_name, contig_name, contig_coord, intervals))
         return out
 
     cdef dict coarse_search(self, int n_kmers, npc.uint8_t[:] query, double coarse_radius):
