@@ -41,6 +41,7 @@ extensions = [
         ('ariesk/cluster.pyx', 'ariesk.cluster'),
         ('ariesk/ram.pyx', 'ariesk.ram'),
 
+        ('ariesk/seed_align.pyx', 'ariesk.seed_align'),
         #('ariesk/ssw.pyx', 'ariesk.ssw'),
     ]
 ] + [
