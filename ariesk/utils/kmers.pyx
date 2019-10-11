@@ -149,6 +149,12 @@ def py_bounded_needle_fast(str seq1, str seq2, int bound, normalize=False):
     cdef double[:, :] score =  1000 * np.ones((len(seq1) + 1, len(seq2) + 1))
     return bounded_needle_fast(encode_kmer(seq1), encode_kmer(seq2), bound, normalize, score)
 
+
+cdef double bounded_needle(npc.uint8_t[::] k1, npc.uint8_t[::] k2, npc.uint8_t bound):
+    cdef double[:, :] score =  1000 * np.ones((len(seq1) + 1, len(seq2) + 1))
+    return bounded_needle_fast(k1, k2, bound, False, score)
+
+
 cdef double bounded_needle_fast(npc.uint8_t[::] k1, npc.uint8_t[::] k2, npc.uint8_t bound, bint normalize, double[:, :] score):
     """Return NW alignment using pre-allocated RAM."""
     cdef double match_score = 0
