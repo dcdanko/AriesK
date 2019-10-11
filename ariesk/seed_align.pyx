@@ -94,7 +94,7 @@ cdef npc.uint64_t[:, :] find_matched_positions(npc.uint64_t[:, :] q_kmers, npc.u
                 t_index = target_pos
                 n_hits += 1
                 break
-    return matched_positions
+    return matched_positions[:n_hits,:]
 
 
 cdef npc.uint64_t[:, :] find_compact_intervals(
@@ -121,10 +121,10 @@ cdef npc.uint64_t[:, :] find_compact_intervals(
             matching_intervals[n_matched_intervals, 2] = current_interval_start_target
             matching_intervals[n_matched_intervals, 3] = current_interval_end_target
             n_matched_intervals += 1
-            current_interval_start_query = matching_intervals[n_matched_intervals, 0]
-            current_interval_start_target = matching_intervals[n_matched_intervals, 1]
-            current_interval_end_query = matching_intervals[n_matched_intervals, 0] + word_size - 1
-            current_interval_end_target = matching_intervals[n_matched_intervals, 1] + word_size - 1
+            current_interval_start_query = matched_positions[i, 0]
+            current_interval_start_target = matched_positions[i, 1]
+            current_interval_end_query = matched_positions[i, 0] + word_size - 1
+            current_interval_end_target = matched_positions[i, 1] + word_size - 1
         i += 1
 
     matching_intervals[n_matched_intervals, 0] = current_interval_start_query
@@ -148,10 +148,10 @@ cdef int extend_intervals(
     while j < matching_intervals.shape[0]:
         q_s, q_e, t_s, t_e = matching_intervals[i, :]
         q_l, t_l = q_e - q_s, t_e - t_s
-        n_q_s, n_t_s, _, _ = matching_intervals[i + 1, :]
+        n_q_s, _,  n_t_s, _ = matching_intervals[i + 1, :]
 
         gap_score = min(q_l, t_l) - GAP_PENALTY * abs(q_l - t_l)
-        q_gap, t_gap = n_q_s - q_e, n_t_s - t_s
+        q_gap, t_gap = n_q_s - q_e, n_t_s - t_e
         max_gap_btwn_intervals_score = GAP_PENALTY * (max(q_gap, t_gap) - min(q_gap, t_gap))
         max_gap_btwn_intervals_score += MIS_PENALTY * min(q_gap, t_gap)
         if max_gap_btwn_intervals_score <= gap_score:  # automatically extend
@@ -230,7 +230,6 @@ cdef npc.uint64_t[:, :] get_query_kmers(npc.uint8_t[:] query, int k, int gap):
             q_kmers[n_kmers, 0] = kmer_hash
             q_kmers[n_kmers, 1] = i
             n_kmers += 1
-    print(np.array(q_kmers[:n_kmers,:]))
     return q_kmers[:n_kmers,:]
 
 
