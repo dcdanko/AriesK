@@ -8,6 +8,7 @@ cimport numpy as npc
 from libc.stdio cimport *
 from posix.stdio cimport * # FILE, fopen, fclose
 from libc.stdlib cimport malloc, free
+from math import ceil
 
 from ariesk.utils.kmers cimport encode_kmer, decode_kmer, encode_seq_from_buffer
 from ariesk.dbs.core_db cimport CoreDB
@@ -127,10 +128,10 @@ cdef class ContigDB(CoreDB):
         self.add_contig(genome_name, contig_name, encode_kmer(contig), gap=gap)
 
     cdef add_contig(self, str genome_name, str contig_name, npc.uint8_t[:] contig, int gap=1):
-        cdef int offset = self.current_seq_coord + CONTIG_GAP
         if genome_name not in self.genomes_added:
-            offset += GENOME_GAP
+            self.current_seq_coord += GENOME_GAP
             self.genomes_added.add(genome_name)
+        self.current_seq_coord += CONTIG_GAP
         cdef npc.uint8_t[:] kmer
         cdef double[:] centroid
         cdef tuple centroid_key
@@ -139,13 +140,14 @@ cdef class ContigDB(CoreDB):
             kmer = contig[i:i + self.ramifier.k]
             centroid = np.floor(self.ramifier.c_ramify(kmer) / self.box_side_len, casting='safe')
             centroid_id = self.add_centroid(centroid)
-            seq_coord = offset + (i // self.seq_block_len)
+            seq_coord = self.current_seq_coord + (i // self.seq_block_len)
             self.add_coord_to_centroid(centroid_id, seq_coord)
             if i % self.seq_block_len == 0:
                 self.add_contig_seq(
                     genome_name, contig_name, seq_coord, i,
                     contig[i:min(i + self.seq_block_len, contig.shape[0])]
                 )
+        self.current_seq_coord += int(ceil(contig.shape[0] / self.seq_block_len))
 
     cdef _clear_coord_buffer(self):
         if self.coord_buffer_filled > 0:
