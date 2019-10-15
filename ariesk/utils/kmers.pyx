@@ -151,7 +151,7 @@ def py_bounded_needle_fast(str seq1, str seq2, int bound, normalize=False):
 
 
 cdef double bounded_needle(npc.uint8_t[::] k1, npc.uint8_t[::] k2, npc.uint8_t bound):
-    cdef double[:, :] score =  1000 * np.ones((len(k1) + 1, len(k2) + 1))
+    cdef double[:, :] score =  1000 * np.ones((k1.shape[0] + 1, k2.shape[0] + 1))
     return bounded_needle_fast(k1, k2, bound, False, score)
 
 
