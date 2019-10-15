@@ -63,10 +63,11 @@ def search_contig(verbose, radius, seq_identity, kmer_fraction, outfile, contig_
 @click.option('-r', '--radius', default=0.01)
 @click.option('-i', '--seq-identity', default=0.5)
 @click.option('-f', '--kmer-fraction', default=0.5)
+@click.option('-m', '--min-hit-length', default=20)
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
 @click.argument('contig_db', type=click.Path())
 @click.argument('fasta', type=click.Path())
-def search_contig(verbose, num_repeats, radius, seq_identity, kmer_fraction, outfile, contig_db, fasta):
+def search_contig(verbose, num_repeats, radius, seq_identity, kmer_fraction, min_hit_length, outfile, contig_db, fasta):
     logger = None
     if verbose:
         logger = TimingLogger(lambda el: click.echo(el, err=True)).log
@@ -84,7 +85,8 @@ def search_contig(verbose, num_repeats, radius, seq_identity, kmer_fraction, out
                 q_end = intervals[i, 1]
                 t_start = intervals[i, 2]
                 t_end = intervals[i, 3]
-                print(f'{q_start}\t{q_end}\t{t_start}\t{t_end}\t{header}', file=outfile)
+                if min(q_end - q_start, t_end - t_start) >= min_hit_length:
+                    print(f'{q_start}\t{q_end}\t{t_start}\t{t_end}\t{header}', file=outfile)
 
 
 @search_cli.command('seq')
