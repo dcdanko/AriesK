@@ -6,7 +6,7 @@ import numpy as np
 cimport numpy as npc
 
 from libc.math cimport log, floor, ceil, log2
-from ariesk.utils.kmers cimport encode_kmer, decode_kmer, bounded_needle
+from ariesk.utils.kmers cimport encode_kmer, decode_kmer, bounded_needle, needle_dist
 
 
 cdef npc.uint32_t GAP_PENALTY = 1
@@ -157,10 +157,10 @@ cdef int extend_intervals(
         if max_gap_btwn_intervals_score <= gap_score:  # automatically extend
             gap_score -= max_gap_btwn_intervals_score
         elif max(q_gap, t_gap) < max_inter_interval_gap:  # attempt extension
-            gap_score = bounded_needle(
+            gap_score = needle_dist(
                 query[q_e + 1: n_q_s],
                 target[t_e + 1: n_t_s],
-                min(max(q_gap, t_gap) - min(q_gap, t_gap), min(q_gap, t_gap) / 2)
+                False
             )
             gap_score *= -1  # our function returns distance not similarity
         else:
