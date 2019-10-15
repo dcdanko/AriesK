@@ -59,18 +59,19 @@ def search_contig(verbose, radius, seq_identity, kmer_fraction, outfile, contig_
 
 @search_cli.command('contig-fasta')
 @click.option('-v/-q', '--verbose/--quiet', default=False)
+@click.option('-n', '--num-repeats', default=1)
 @click.option('-r', '--radius', default=0.01)
 @click.option('-i', '--seq-identity', default=0.5)
 @click.option('-f', '--kmer-fraction', default=0.5)
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
 @click.argument('contig_db', type=click.Path())
 @click.argument('fasta', type=click.Path())
-def search_contig(verbose, radius, seq_identity, kmer_fraction, outfile, contig_db, fasta):
+def search_contig(verbose, num_repeats, radius, seq_identity, kmer_fraction, outfile, contig_db, fasta):
     logger = None
     if verbose:
         logger = TimingLogger(lambda el: click.echo(el, err=True)).log
     searcher = ContigSearcher.from_filepath(contig_db, logger=logger)
-    for _ in range(10):
+    for _ in range(num_repeats):
         start = time()
         all_hits = searcher.search_contigs_from_fasta(fasta, radius, kmer_fraction, seq_identity)
         elapsed = time() - start
