@@ -39,6 +39,10 @@ cdef class ContigSearcher:
     def __cinit__(self, contig_db, logger=None):
         self.db = contig_db
         self.centroid_rfts = self.db.c_get_centroids()
+        for i in range(self.centroid_rfts.shape[0]):
+            for j in range(self.db.ramifier.d):
+                self.centroid_rfts[i, j] *= self.db.box_side_len
+                self.centroid_rfts[i, j] += (self.db.box_side_len / 2)
         self.tree = cKDTree(self.centroid_rfts)
         self.radius = (self.db.ramifier.d ** (0.5)) * self.db.box_side_len
         self.logger = logger
@@ -76,7 +80,7 @@ cdef class ContigSearcher:
         cdef npc.uint64_t[:, :] intervals
         cdef npc.uint32_t[:, :] t_kmers
         for seq_coord, count in counts.items():
-            if count > (n_kmers * kmer_fraction):
+            if count >= (n_kmers * kmer_fraction):
                 genome_name, contig_name, contig_coord, contig = self.db.get_contig(seq_coord)
                 t_kmers = self.db.get_contig_kmers(seq_coord, k)
                 intervals = seed_and_extend(query, contig, q_kmers, t_kmers, k)
