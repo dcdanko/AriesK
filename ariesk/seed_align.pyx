@@ -160,7 +160,7 @@ cdef int extend_intervals(
             gap_score = bounded_needle(
                 query[q_e + 1: n_q_s],
                 target[t_e + 1: n_t_s],
-                max(q_gap, t_gap) - min(q_gap, t_gap)
+                min(max(q_gap, t_gap) - min(q_gap, t_gap), min(q_gap, t_gap) / 2)
             )
             gap_score *= -1  # our function returns distance not similarity
         else:
