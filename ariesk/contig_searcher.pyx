@@ -49,6 +49,7 @@ cdef class ContigSearcher:
         self.logging = False
         if self.logger is not None:
             self.logging = True
+            self.logger(f'Searcher loaded. Radius {self.radius}, num. centers {self.centroid_rfts.shape[0]}')
 
     def py_search(self, str query, double coarse_radius, double kmer_fraction, double identity=0.5):
         return [
