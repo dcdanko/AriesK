@@ -70,14 +70,14 @@ def search_contig(verbose, radius, seq_identity, kmer_fraction, outfile, contig_
     if verbose:
         logger = TimingLogger(lambda el: click.echo(el, err=True)).log
     searcher = ContigSearcher.from_filepath(contig_db, logger=logger)
-    for _ in range(1):
+    for _ in range(10):
         start = time()
         all_hits = searcher.search_contigs_from_fasta(fasta, radius, kmer_fraction, seq_identity)
         elapsed = time() - start
         click.echo(f'Search complete in {elapsed:.5}s')
-    for contig, hits in all_hits.items():
-        for score, genome_name, contig_name, contig_coord in hits:
-            print(f'{score} {genome_name} {contig_name} {contig_coord} {contig}', file=outfile)
+    for query_contig, hits in all_hits.items():
+        for genome_name, contig_name, contig_coord, intervals in hits:
+            print(f'{query_contig} {genome_name} {contig_name} {contig_coord}', file=outfile)
 
 
 @search_cli.command('seq')
