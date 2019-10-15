@@ -78,11 +78,13 @@ def search_contig(verbose, num_repeats, radius, seq_identity, kmer_fraction, out
         click.echo(f'Search complete in {elapsed:.5}s')
     for query_contig, hits in all_hits.items():
         for genome_name, contig_name, contig_coord, intervals in hits:
-            header = f'{genome_name}\t{contig_name}\t{contig_coord}'
+            header = f'{genome_name}\t{contig_name}\t{contig_coord}\t{query_contig}'
             for i in range(intervals.shape[0]):
-                start = intervals[i, 0]
-                end = intervals[i, 1]
-                print(f'{header}\t{start}\t{end}\t{query_contig}', file=outfile)
+                q_start = intervals[i, 0]
+                q_end = intervals[i, 1]
+                t_start = intervals[i, 0]
+                t_end = intervals[i, 1]
+                print(f'{q_start}\t{q_end}\t{t_start}\t{t_end}\t{header}', file=outfile)
 
 
 @search_cli.command('seq')
