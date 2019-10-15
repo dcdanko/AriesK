@@ -82,8 +82,8 @@ def search_contig(verbose, num_repeats, radius, seq_identity, kmer_fraction, out
             for i in range(intervals.shape[0]):
                 q_start = intervals[i, 0]
                 q_end = intervals[i, 1]
-                t_start = intervals[i, 0]
-                t_end = intervals[i, 1]
+                t_start = intervals[i, 2]
+                t_end = intervals[i, 3]
                 print(f'{q_start}\t{q_end}\t{t_start}\t{t_end}\t{header}', file=outfile)
 
 
