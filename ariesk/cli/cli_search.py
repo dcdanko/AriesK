@@ -46,7 +46,7 @@ def search_contig(verbose, radius, seq_identity, kmer_fraction, outfile, contig_
     searcher = ContigSearcher.from_filepath(contig_db, logger=logger)
     for contig in contigs:
         min_time = 1000 * 1000
-        for _ in range(1):  # for testing
+        for _ in range(10):  # for testing
             start = time()
             hits = searcher.py_search(contig, radius, kmer_fraction, seq_identity)
             elapsed = time() - start
