@@ -1,5 +1,5 @@
-# cython: profile=True
-# cython: linetrace=True
+# cython: profile=False
+# cython: linetrace=False
 # cython: language_level=3
 # cython: boundscheck=False, wraparound=False, nonecheck=False
 
@@ -82,27 +82,28 @@ cdef npc.uint64_t[:, :] find_matched_positions(npc.uint64_t[:, :] q_kmers, npc.u
     cdef int q_index
     cdef int t_index = 0
     cdef int i
+    cdef npc.uint32_t target_pos
+    cdef npc.uint64_t q_kmer_hash
     for q_index in range(q_kmers.shape[0]):
         q_kmer_hash = q_kmers[q_index, 0]
-        for i in range(t_kmers[q_kmer_hash].shape[0]):
+        for i in range(TARGET_WIDTH):
             target_pos = t_kmers[q_kmer_hash, i]
             if target_pos <= 0:
                 break
             elif target_pos >= t_index:
-                foo = q_kmers[q_index, 1]
-                matched_positions[n_hits, 0] = foo
+                matched_positions[n_hits, 0] = q_kmers[q_index, 1]
                 matched_positions[n_hits, 1] = target_pos
                 t_index = target_pos
                 n_hits += 1
                 break
-    return matched_positions[:n_hits,:]
+    return matched_positions[:n_hits, :]
 
 
 cdef npc.uint64_t[:, :] find_compact_intervals(
     int word_size, int max_gap, npc.uint64_t[:, :] matched_positions
     ):
     """Return a 4 column dataframe with exact intervals that are *almost* exact matches."""
-    n_matched_intervals = 0
+    cdef int n_matched_intervals = 0
     cdef npc.uint64_t[:, :] matching_intervals = npc.ndarray((matched_positions.shape[0], 4), dtype=np.uint64)
     cdef int i = 1
     cdef npc.uint64_t current_interval_start_query = matched_positions[0, 0]
@@ -136,6 +137,9 @@ cdef npc.uint64_t[:, :] find_compact_intervals(
     return matching_intervals[:n_matched_intervals, :]
 
 
+
+
+
 cdef int extend_intervals(
     npc.uint8_t[:] query, npc.uint8_t[:] target,
     int max_inter_interval_gap,
@@ -146,18 +150,41 @@ cdef int extend_intervals(
     """
     cdef int i = 0
     cdef int j = 1
+    cdef npc.uint64_t q_s, q_e, t_s, t_e, q_l, t_l, n_q_s, n_t_s, q_gap, t_gap
+    cdef npc.uint64_t min_len, len_dif, min_gap, max_gap
+    cdef double gap_score
+    cdef npc.uint64_t max_gap_btwn_intervals_score
     while j < matching_intervals.shape[0]:
-        q_s, q_e, t_s, t_e = matching_intervals[i, :]
+        q_s = matching_intervals[i, 0]
+        q_e = matching_intervals[i, 1]
+        t_s = matching_intervals[i, 2]
+        t_e = matching_intervals[i, 3]
         q_l, t_l = q_e - q_s, t_e - t_s
-        n_q_s, _,  n_t_s, _ = matching_intervals[i + 1, :]
+        n_q_s = matching_intervals[i + 1, 0]
+        n_t_s = matching_intervals[i + 1, 2]
 
-        gap_score = min(q_l, t_l) - GAP_PENALTY * abs(q_l - t_l)
+        if t_l < min_len:
+            min_len = t_l
+            len_dif = q_l - t_l
+        else:
+            min_len = q_l
+            len_dif = t_l - q_l
+        gap_score = min_len - GAP_PENALTY * len_dif
+
         q_gap, t_gap = n_q_s - q_e, n_t_s - t_e
-        max_gap_btwn_intervals_score = GAP_PENALTY * (max(q_gap, t_gap) - min(q_gap, t_gap))
-        max_gap_btwn_intervals_score += MIS_PENALTY * min(q_gap, t_gap)
+
+        if t_gap < q_gap:
+            max_gap = q_gap - t_gap
+            min_gap = t_gap - q_gap
+        else:
+            max_gap = t_gap - q_gap
+            min_gap = q_gap - t_gap
+
+        max_gap_btwn_intervals_score = GAP_PENALTY * (max_gap - min_gap)
+        max_gap_btwn_intervals_score += MIS_PENALTY * min_gap
         if max_gap_btwn_intervals_score <= gap_score:  # automatically extend
             gap_score -= max_gap_btwn_intervals_score
-        elif max(q_gap, t_gap) < max_inter_interval_gap:  # attempt extension
+        elif max_gap < max_inter_interval_gap:  # attempt extension
             gap_score = needle_dist(
                 query[q_e + 1: n_q_s],
                 target[t_e + 1: n_t_s],
@@ -231,7 +258,7 @@ cdef npc.uint64_t[:, :] get_query_kmers(npc.uint8_t[:] query, int k, int gap):
             q_kmers[n_kmers, 0] = kmer_hash
             q_kmers[n_kmers, 1] = i
             n_kmers += 1
-    return q_kmers[:n_kmers,:]
+    return q_kmers[:n_kmers, :]
 
 
 cdef npc.uint32_t[:, :] get_target_kmers(npc.uint8_t[:] target, int k):
