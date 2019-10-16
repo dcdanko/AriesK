@@ -1,5 +1,5 @@
-# cython: profile=True
-# cython: linetrace=True
+# cython: profile=False
+# cython: linetrace=False
 # cython: language_level=3
 
 import sqlite3
