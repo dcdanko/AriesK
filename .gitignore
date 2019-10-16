@@ -3,6 +3,9 @@
 # C extensions
 *.so
 *.cpp
+*.html
+*.c
+*~
 
 build/*
 
