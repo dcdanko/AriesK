@@ -33,7 +33,8 @@ cdef class CoreDB:
                 'SELECT value FROM basics WHERE name=?', ('box_side_len',)
             ).fetchone()[0])
         else:
-            assert box_side_len is not None
+            if box_side_len is None:
+                box_side_len = 1
             self.box_side_len = box_side_len
             self.conn.execute(
                 'INSERT INTO basics VALUES (?,?)',

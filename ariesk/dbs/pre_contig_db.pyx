@@ -25,8 +25,8 @@ cdef class PreContigDB(CoreDB):
     cdef public list coord_buffer
     cdef public int contig_counter
 
-    def __cinit__(self, conn, ramifier=None, box_side_len=None):
-        super().__init__(conn, ramifier=ramifier, box_side_len=box_side_len)
+    def __cinit__(self, conn, ramifier=None, box_side_len=1):
+        super().__init__(conn, ramifier=ramifier, box_side_len=1)
         self.seq_block_len = SEQ_BLOCK_LEN
         self.coord_buffer_filled = 0
         self.coord_buffer = [None] * BUFFER_SIZE

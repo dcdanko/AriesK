@@ -38,7 +38,7 @@ class TestContigDB(TestCase):
     def test_build_pre_contig_db(self):
         conn = sqlite3.connect(':memory:')
         ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
-        contig_db = PreContigDB(conn, ramifier=ramifier, box_side_len=0.5)
+        contig_db = PreContigDB(conn, ramifier=ramifier)
         contig = random_kmer(2 * 10 * 1000)
         contig_db.py_add_contig('test_genome', 'test_contig', contig, gap=100)
         contig_db.commit()

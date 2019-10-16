@@ -16,6 +16,7 @@ from ariesk.grid_builder import GridCoverBuilder
 from ariesk.grid_searcher import GridCoverSearcher
 from ariesk.dbs.kmer_db import GridCoverDB
 from ariesk.dbs.contig_db import ContigDB
+from ariesk.dbs.pre_contig_db import PreContigDB
 
 from ariesk.pre_db import PreDB
 from ariesk.utils.parallel_build import coordinate_parallel_build
@@ -160,6 +161,33 @@ def build_contig_cover_fasta(radius, dimension, threads, outfile, rotation, fast
     ramifier = RotatingRamifier.from_file(dimension, rotation)
     grid = ContigDB(
         sqlite3.connect(outfile), ramifier=ramifier, box_side_len=radius
+    )
+    click.echo(f'Adding {len(fasta_list)} fastas.', err=True)
+    start = time()
+    with click.progressbar(fasta_list) as fastas:
+        for fasta_filename in fastas:
+            n_added = grid.fast_add_kmers_from_fasta(fasta_filename)
+    grid.close()
+    add_time = time() - start
+    click.echo(
+        f'Added {n_added:,} kmers to {outfile} in {add_time:.5}s. ',
+        err=True
+    )
+
+
+@build_cli.command('pre-contig-fasta')
+@click.option('-d', '--dimension', default=8)
+@click.option('-t', '--threads', default=1)
+@click.option('-o', '--outfile', default='ariesk_precover_db.sqlite', type=click.Path())
+@click.argument('rotation', type=click.Path())
+@click.argument('fasta_list', type=click.File('r'))
+def build_contig_cover_fasta(radius, dimension, threads, outfile, rotation, fasta_list):
+    environ['OPENBLAS_NUM_THREADS'] = f'{threads}'  # numpy uses one of these two libraries
+    environ['MKL_NUM_THREADS'] = f'{threads}'
+    fasta_list = [line.strip() for line in fasta_list]
+    ramifier = RotatingRamifier.from_file(dimension, rotation)
+    grid = PreContigDB(
+        sqlite3.connect(outfile), ramifier=ramifier
     )
     click.echo(f'Adding {len(fasta_list)} fastas.', err=True)
     start = time()
