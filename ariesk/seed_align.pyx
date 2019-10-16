@@ -1,6 +1,7 @@
 # cython: profile=True
 # cython: linetrace=True
 # cython: language_level=3
+# cython: boundscheck=False, wraparound=False, nonecheck=False
 
 import numpy as np
 cimport numpy as npc

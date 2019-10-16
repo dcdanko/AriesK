@@ -24,8 +24,8 @@ from ariesk.utils.kmers cimport (
 )
 from ariesk.seed_align cimport seed_and_extend, get_query_kmers
 
-K_LEN = 7
-K_GAP = 3
+cdef npc.uint8_t K_LEN = 7
+cdef npc.uint8_t K_GAP = 3
 
 
 cdef class ContigSearcher:
@@ -62,7 +62,7 @@ cdef class ContigSearcher:
     cdef list search(self, npc.uint8_t[:] query, double coarse_radius, double kmer_fraction, double identity):
         if self.logging:
             self.logger(f'Starting query. Coarse radius {coarse_radius}, k-mer fraction {kmer_fraction}')
-        cdef int n_kmers = (query.shape[0] - self.db.ramifier.k + 1) // (self.db.ramifier.k // 2)
+        cdef npc.uint32_t n_kmers = (query.shape[0] - self.db.ramifier.k + 1) // (self.db.ramifier.k // 2)
         cdef dict counts = self.coarse_search(n_kmers, query, coarse_radius)
         if self.logging:
             self.logger(f'Coarse search complete. {len(counts)} candidates.')
@@ -74,7 +74,7 @@ cdef class ContigSearcher:
 
     cdef list fine_search(self,
                           npc.uint8_t[:] query, npc.uint64_t[:, :] q_kmers,
-                          int k, int n_kmers, dict counts,
+                          npc.uint8_t k, npc.uint32_t n_kmers, dict counts,
                           double kmer_fraction, double identity):
         cdef list out = []
         cdef double aln_score

@@ -1,6 +1,7 @@
 # cython: profile=True
 # cython: linetrace=True
 # cython: language_level=3
+# cython: boundscheck=False, wraparound=False, nonecheck=False
 
 import numpy as np
 cimport numpy as npc
@@ -36,7 +37,7 @@ cdef class Ramifier:
             k = binary_kmer[i]
             if k <= 3:  # leave 'N' blank
                 self.kmer_matrix[i, k] = 1
-        cdef npc.ndarray rft = abs(np.dot(self.rs_matrix, self.kmer_matrix)).flatten()
+        cdef npc.ndarray rft = np.absolute(np.dot(self.rs_matrix, self.kmer_matrix)).flatten()
         return rft
 
     def ramify(self, str kmer):
