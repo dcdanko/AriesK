@@ -45,6 +45,19 @@ class TestContigDB(TestCase):
         stored = contig_db.get_all_contigs()
         self.assertEqual(len(stored), 2)
 
+    def test_build_contig_db_from_pre(self):
+        conn = sqlite3.connect(':memory:')
+        ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
+        precontig_db = PreContigDB(conn, ramifier=ramifier)
+        contig = random_kmer(2 * 10 * 1000)
+        precontig_db.py_add_contig('test_genome', 'test_contig', contig, gap=100)
+        precontig_db.commit()
+        stored = precontig_db.get_all_contigs()
+        self.assertEqual(len(stored), 2)
+        contig_db = ContigDB.from_predb(':memory:', precontig_db, 0.5)
+        stored = contig_db.get_all_contigs()
+        self.assertEqual(len(stored), 2)
+
     def test_build_contig_db_from_fasta(self):
         conn = sqlite3.connect(':memory:')
         ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)

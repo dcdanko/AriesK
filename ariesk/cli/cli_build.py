@@ -175,6 +175,31 @@ def build_contig_cover_fasta(radius, dimension, threads, outfile, rotation, fast
     )
 
 
+@build_cli.command('contig-from-pre')
+@click.option('-r', '--radius', default=0.01, type=float)
+@click.option('-t', '--threads', default=1)
+@click.option('-o', '--outfile', default='ariesk_grid_cover_db.sqlite', type=click.Path())
+@click.argument('pre_list', type=click.File('r'))
+def build_contig_from_pre(radius, threads, outfile, pre_list):
+    environ['OPENBLAS_NUM_THREADS'] = f'{threads}'  # numpy uses one of these two libraries
+    environ['MKL_NUM_THREADS'] = f'{threads}'
+    pre_list = [line.strip() for line in fasta_list]
+    predb = PreContigDB.load_from_filepath(pre_list[0])
+    grid = ContigDB.from_predb(outfile, predb, radius)
+    click.echo(f'Adding {len(pre_list)} predbs.', err=True)
+    start = time()
+    with click.progressbar(pre_list) as pres:
+        for i, predb_filename in enumerate(pres):
+            if i > 0:
+                grid.add_from_predb(PreContigDB.load_from_filepath(predb_filename))
+    grid.close()
+    add_time = time() - start
+    click.echo(
+        f'Added predbs to {outfile} in {add_time:.5}s. ',
+        err=True
+    )
+
+
 @build_cli.command('pre-contig-fasta')
 @click.option('-d', '--dimension', default=8)
 @click.option('-t', '--threads', default=1)

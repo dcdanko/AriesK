@@ -9,6 +9,7 @@ from libc.stdio cimport *
 from posix.stdio cimport * # FILE, fopen, fclose
 from libc.stdlib cimport malloc, free
 from math import ceil
+from libc.math cimport floor
 
 from ariesk.utils.kmers cimport encode_kmer, decode_kmer, encode_seq_from_buffer
 from ariesk.dbs.core_db cimport CoreDB
@@ -167,6 +168,44 @@ cdef class ContigDB(CoreDB):
         self._clear_coord_buffer()
         self._clear_buffer()
         self.conn.commit()
+
+    @classmethod
+    def from_predb(cls, filepath, predb, box_side_len):
+        db = cls(
+            sqlite3.connect(filepath),
+            ramifier=predb.ramifier,
+            box_side_len=box_side_len
+        )
+        db._drop_indices()
+        db.add_from_predb(predb)
+        return db
+
+    def add_from_predb(self, predb):
+        for contig_id, seq, genome_name, contig_name, contig_start in predb.conn.execute('SELECT * FROM contigs'):
+            self.add_contig_from_predb(
+                predb, contig_id, seq, genome_name, contig_name, contig_start
+            )
+
+    def add_contig_from_predb(self, predb, contig_id, seq, genome_name, contig_name, contig_start):
+        self.current_seq_coord += CONTIG_GAP
+        if genome_name not in self.genomes_added:
+            self.current_seq_coord += GENOME_GAP
+            self.genomes_added.add(genome_name)
+        self.conn.execute(
+            'INSERT INTO contigs VALUES (?,?,?,?,?)',
+            (self.current_seq_coord, seq, genome_name, contig_name, contig_start)
+        )
+        cdef tuple raw_rft_tup
+        cdef npc.uint8_t[:] raw_rft
+        cdef const double[:] rft
+        cdef double[:] centroid = np.ndarray((self.ramifier.d,))
+        cdef int centroid_id
+        for raw_rft_tup in predb.conn.execute('SELECT rft FROM rfts WHERE rft_contig=?', (contig_id,)):
+            rft = np.frombuffer(raw_rft_tup[0], dtype=float, count=self.ramifier.d)
+            for i in range(self.ramifier.d):
+                centroid[i] = floor(rft[i] / self.box_side_len)
+            centroid_id = self.add_centroid(centroid)
+            self.add_coord_to_centroid(centroid_id, self.current_seq_coord)
 
     @classmethod
     def load_from_filepath(cls, filepath):
