@@ -184,14 +184,17 @@ def build_contig_from_pre(radius, threads, outfile, pre_list):
     environ['OPENBLAS_NUM_THREADS'] = f'{threads}'  # numpy uses one of these two libraries
     environ['MKL_NUM_THREADS'] = f'{threads}'
     pre_list = [line.strip() for line in pre_list]
-    predb = PreContigDB.load_from_filepath(pre_list[0])
-    grid = ContigDB.from_predb(outfile, predb, radius)
     click.echo(f'Adding {len(pre_list)} predbs.', err=True)
     start = time()
+    predb = PreContigDB.load_from_filepath(pre_list[0])
+    grid = ContigDB.from_predb(outfile, predb, radius)
+    grid._drop_indices()
     with click.progressbar(pre_list) as pres:
         for i, predb_filename in enumerate(pres):
             if i > 0:
                 grid.add_from_predb(PreContigDB.load_from_filepath(predb_filename))
+    grid.commit()
+    grid._build_indices()
     grid.close()
     add_time = time() - start
     click.echo(
@@ -214,12 +217,14 @@ def build_precontig_cover_fasta(dimension, threads, outfile, rotation, fasta_lis
     grid = PreContigDB(
         sqlite3.connect(outfile), ramifier=ramifier
     )
+    grid._drop_indices()
     click.echo(f'Adding {len(fasta_list)} fastas.', err=True)
     start = time()
     with click.progressbar(fasta_list) as fastas:
         for fasta_filename in fastas:
             n_added = grid.fast_add_kmers_from_fasta(fasta_filename)
     grid.close()
+    grid._build_indices()
     add_time = time() - start
     click.echo(
         f'Added {n_added:,} kmers to {outfile} in {add_time:.5}s. ',
