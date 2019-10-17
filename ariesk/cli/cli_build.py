@@ -183,7 +183,7 @@ def build_contig_cover_fasta(radius, dimension, threads, outfile, rotation, fast
 def build_contig_from_pre(radius, threads, outfile, pre_list):
     environ['OPENBLAS_NUM_THREADS'] = f'{threads}'  # numpy uses one of these two libraries
     environ['MKL_NUM_THREADS'] = f'{threads}'
-    pre_list = [line.strip() for line in fasta_list]
+    pre_list = [line.strip() for line in pre_list]
     predb = PreContigDB.load_from_filepath(pre_list[0])
     grid = ContigDB.from_predb(outfile, predb, radius)
     click.echo(f'Adding {len(pre_list)} predbs.', err=True)
