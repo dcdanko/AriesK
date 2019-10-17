@@ -181,7 +181,7 @@ def build_contig_cover_fasta(radius, dimension, threads, outfile, rotation, fast
 @click.option('-o', '--outfile', default='ariesk_precover_db.sqlite', type=click.Path())
 @click.argument('rotation', type=click.Path())
 @click.argument('fasta_list', type=click.File('r'))
-def build_precontig_cover_fasta(radius, dimension, threads, outfile, rotation, fasta_list):
+def build_precontig_cover_fasta(dimension, threads, outfile, rotation, fasta_list):
     environ['OPENBLAS_NUM_THREADS'] = f'{threads}'  # numpy uses one of these two libraries
     environ['MKL_NUM_THREADS'] = f'{threads}'
     fasta_list = [line.strip() for line in fasta_list]
