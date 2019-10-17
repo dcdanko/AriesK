@@ -181,12 +181,27 @@ cdef class ContigDB(CoreDB):
         return db
 
     def add_from_predb(self, predb):
+        cdef dict raw_rfts = {}
+        # cdef npc.uint8_t[:] raw_rft
+        cdef const double[:] rft
+        cdef double[:] centroid = np.ndarray((self.ramifier.d,))
+        cdef int centroid_id
+        cdef int contig_id
+        for raw_rft, contig_id in predb.conn.execute('SELECT * FROM rfts'):
+            rft = np.frombuffer(raw_rft, dtype=float, count=self.ramifier.d)
+            for i in range(self.ramifier.d):
+                centroid[i] = floor(rft[i] / self.box_side_len)
+            centroid_id = self.add_centroid(centroid)
+            try:
+                raw_rfts[contig_id].append(centroid_id)
+            except KeyError:
+                raw_rfts[contig_id] = [centroid_id]
         for contig_id, seq, genome_name, contig_name, contig_start in predb.conn.execute('SELECT * FROM contigs'):
             self.add_contig_from_predb(
-                predb, contig_id, seq, genome_name, contig_name, contig_start
+                raw_rfts, contig_id, seq, genome_name, contig_name, contig_start
             )
 
-    def add_contig_from_predb(self, predb, contig_id, seq, genome_name, contig_name, contig_start):
+    def add_contig_from_predb(self, raw_rfts, contig_id, seq, genome_name, contig_name, contig_start):
         self.current_seq_coord += CONTIG_GAP
         if genome_name not in self.genomes_added:
             self.current_seq_coord += GENOME_GAP
@@ -195,16 +210,8 @@ cdef class ContigDB(CoreDB):
             'INSERT INTO contigs VALUES (?,?,?,?,?)',
             (self.current_seq_coord, seq, genome_name, contig_name, contig_start)
         )
-        cdef tuple raw_rft_tup
-        cdef npc.uint8_t[:] raw_rft
-        cdef const double[:] rft
-        cdef double[:] centroid = np.ndarray((self.ramifier.d,))
         cdef int centroid_id
-        for raw_rft_tup in predb.conn.execute('SELECT rft FROM rfts WHERE rft_contig=?', (contig_id,)):
-            rft = np.frombuffer(raw_rft_tup[0], dtype=float, count=self.ramifier.d)
-            for i in range(self.ramifier.d):
-                centroid[i] = floor(rft[i] / self.box_side_len)
-            centroid_id = self.add_centroid(centroid)
+        for centroid_id in raw_rfts[contig_id]:
             self.add_coord_to_centroid(centroid_id, self.current_seq_coord)
 
     @classmethod
