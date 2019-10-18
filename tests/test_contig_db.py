@@ -9,6 +9,7 @@ from os.path import join, dirname
 from unittest import TestCase
 
 from ariesk.dbs.contig_db import ContigDB
+from ariesk.dbs.pre_contig_db import PreContigDB
 from ariesk.contig_searcher import ContigSearcher
 from ariesk.ram import RotatingRamifier
 
@@ -31,6 +32,67 @@ class TestContigDB(TestCase):
         contig = random_kmer(2 * 10 * 1000)
         contig_db.py_add_contig('test_genome', 'test_contig', contig, gap=100)
         contig_db.commit()
+        stored = contig_db.get_all_contigs()
+        self.assertEqual(len(stored), 2)
+
+    def test_build_merge_contig_db(self):
+        conn_1 = sqlite3.connect(':memory:')
+        ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
+        contig_db_1 = ContigDB(conn_1, ramifier=ramifier, box_side_len=0.5)
+        contig = random_kmer(2 * 10 * 1000)
+        contig_db_1.py_add_contig('test_genome_1', 'test_contig_1', contig, gap=100)
+        contig_db_1.commit()
+        conn_2 = sqlite3.connect(':memory:')
+        contig_db_2 = ContigDB(conn_2, ramifier=ramifier, box_side_len=0.5)
+        contig = random_kmer(2 * 10 * 1000)
+        contig_db_2.py_add_contig('test_genome_2', 'test_contig_2', contig, gap=100)
+        contig_db_2.commit()
+        seq_coord = contig_db_1.current_seq_coord + contig_db_2.current_seq_coord
+        contig_db_1.load_other(contig_db_2)
+        stored = contig_db_1.get_all_contigs()
+        self.assertEqual(len(stored), 4)
+        self.assertEqual(contig_db_1.current_seq_coord, seq_coord)
+
+    def test_fileio_contig_db(self):
+        fname = 'temp.test_contig_db.sqlite'
+        try:
+            remove(fname)
+        except FileNotFoundError:
+            pass
+        conn = sqlite3.connect(fname)
+        ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
+        contig_db = ContigDB(conn, ramifier=ramifier, box_side_len=1)
+        contig = random_kmer(2 * 10 * 1000)
+        contig_db.py_add_contig('test_genome', 'test_contig', contig, gap=100)
+        contig_db.commit()
+        from_store = ContigDB.load_from_filepath(fname)
+        self.assertEqual(contig_db.current_seq_coord, from_store.current_seq_coord)
+        self.assertEqual(len(contig_db.centroid_cache), len(from_store.centroid_cache))
+        for key, val in contig_db.centroid_cache.items():
+            self.assertIn(key, from_store.centroid_cache)
+            self.assertEqual(val, from_store.centroid_cache[key])
+        remove(fname)
+
+    def test_build_pre_contig_db(self):
+        conn = sqlite3.connect(':memory:')
+        ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
+        contig_db = PreContigDB(conn, ramifier=ramifier)
+        contig = random_kmer(2 * 10 * 1000)
+        contig_db.py_add_contig('test_genome', 'test_contig', contig, gap=100)
+        contig_db.commit()
+        stored = contig_db.get_all_contigs()
+        self.assertEqual(len(stored), 2)
+
+    def test_build_contig_db_from_pre(self):
+        conn = sqlite3.connect(':memory:')
+        ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
+        precontig_db = PreContigDB(conn, ramifier=ramifier)
+        contig = random_kmer(2 * 10 * 1000)
+        precontig_db.py_add_contig('test_genome', 'test_contig', contig, gap=100)
+        precontig_db.commit()
+        stored = precontig_db.get_all_contigs()
+        self.assertEqual(len(stored), 2)
+        contig_db = ContigDB.from_predb(':memory:', precontig_db, 0.5)
         stored = contig_db.get_all_contigs()
         self.assertEqual(len(stored), 2)
 
