@@ -60,7 +60,9 @@ cdef class ContigDB(CoreDB):
         )
         self.conn.execute(
             '''CREATE TABLE IF NOT EXISTS seq_coords (
-                centroid_id int, seq_coord int
+                centroid_id int, seq_coord int,
+                FOREIGN KEY (centroid_id) REFERENCES centroids(centroid_id),
+                FOREIGN KEY (seq_coord)   REFERENCES contigs(seq_coord)
             )'''
         )
 
@@ -163,6 +165,9 @@ cdef class ContigDB(CoreDB):
                     self.coord_buffer[:self.coord_buffer_filled]
                 )
             self.coord_buffer_filled = 0
+        self.conn.execute(
+            f'UPDATE basics SET value="{self.current_seq_coord}" WHERE name = "current_seq_coord";'
+        )
 
     def commit(self):
         self._clear_coord_buffer()
@@ -213,6 +218,38 @@ cdef class ContigDB(CoreDB):
         cdef int centroid_id
         for centroid_id in raw_rfts[contig_id]:
             self.add_coord_to_centroid(centroid_id, self.current_seq_coord)
+
+    def load_other(self, other, rebuild_indices=True):
+        cdef dict other_centroid_remap = {}
+        for cid, centroid_blob in other.conn.execute('SELECT * FROM centroids'):
+            if centroid_blob in self.centroid_cache:
+                other_centroid_remap[cid] = self.centroid_cache[centroid_blob]
+            else:
+                other_centroid_remap[cid] = len(self.centroid_cache)
+        self._drop_indices()
+        self.conn.executemany(
+            'INSERT INTO centroids VALUES (?,?)',
+            (
+                (other_centroid_remap[cid], centroid_blob)
+                for cid, centroid_blob in other.conn.execute('SELECT * FROM centroids')
+            )
+        )
+        self.conn.executemany(
+            'INSERT INTO seq_coords VALUES (?,?)',
+            (
+                (other_centroid_remap[cid], self.current_seq_coord + coord)
+                for cid, coord in other.conn.execute('SELECT * FROM seq_coords')
+            )
+        )
+        self.conn.executemany(
+            'INSERT INTO contigs VALUES (?,?,?,?,?)',
+            (
+                (self.current_seq_coord + coord, seq, gname, cname, ccoord)
+                for coord, seq, gname, cname, ccoord in other.conn.execute('SELECT * FROM contigs')
+            )
+        )
+        if rebuild_indices:
+            self._build_indices()
 
     @classmethod
     def load_from_filepath(cls, filepath):

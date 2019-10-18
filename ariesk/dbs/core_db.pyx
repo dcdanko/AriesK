@@ -25,6 +25,9 @@ cdef class CoreDB:
         self.kmer_buffer_filled = 0
 
         self.centroid_cache = {}
+        cdef double[:, :] centroids
+        cdef bytes centroid_key
+        cdef int i
 
         self._build_core_tables()
         if ramifier is None:
@@ -32,6 +35,10 @@ cdef class CoreDB:
             self.box_side_len = float(self.conn.execute(
                 'SELECT value FROM basics WHERE name=?', ('box_side_len',)
             ).fetchone()[0])
+            centroids = self.c_get_centroids()
+            for i in range(centroids.shape[0]):
+                centroid_key = np.array(centroids[i, :], dtype=float).tobytes()
+                self.centroid_cache[centroid_key] = i
         else:
             if box_side_len is None:
                 box_side_len = 1
@@ -137,14 +144,14 @@ cdef class CoreDB:
 
     cdef int add_centroid(self, double[:] centroid):
         cdef int centroid_id
-        cdef tuple centroid_key = tuple(centroid)
+        cdef bytes centroid_key = np.array(centroid, dtype=float).tobytes()
         if centroid_key in self.centroid_cache:
             centroid_id = self.centroid_cache[centroid_key]
         else:
             self.centroid_cache[centroid_key] = len(self.centroid_cache)
             centroid_id = self.centroid_cache[centroid_key]
             self.centroid_insert_buffer[self.centroid_buffer_filled] = (
-                centroid_id, np.array(centroid, dtype=float).tobytes()
+                centroid_id, centroid_key
             )
             self.centroid_buffer_filled += 1
         if self.centroid_buffer_filled == BUFFER_SIZE:
