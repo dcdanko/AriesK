@@ -47,9 +47,11 @@ class TestContigDB(TestCase):
         contig = random_kmer(2 * 10 * 1000)
         contig_db_2.py_add_contig('test_genome_2', 'test_contig_2', contig, gap=100)
         contig_db_2.commit()
+        seq_coord = contig_db_1.current_seq_coord + contig_db_2.current_seq_coord
         contig_db_1.load_other(contig_db_2)
         stored = contig_db_1.get_all_contigs()
         self.assertEqual(len(stored), 4)
+        self.assertEqual(contig_db_1.current_seq_coord, seq_coord)
 
     def test_fileio_contig_db(self):
         fname = 'temp.test_contig_db.sqlite'

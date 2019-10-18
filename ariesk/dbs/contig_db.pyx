@@ -248,6 +248,8 @@ cdef class ContigDB(CoreDB):
                 for coord, seq, gname, cname, ccoord in other.conn.execute('SELECT * FROM contigs')
             )
         )
+        self.current_seq_coord += other.current_seq_coord
+        self.commit()
         if rebuild_indices:
             self._build_indices()
 
