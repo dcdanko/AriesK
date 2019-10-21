@@ -5,6 +5,7 @@ import setuptools
 from Cython.Build import cythonize
 import numpy
 from distutils.extension import Extension
+from glob import glob
 
 extra_compile_args = ['-std=c++11', "-O3", "-ffast-math", "-march=native", "-fopenmp" ]
 extra_link_args = ['-fopenmp']
@@ -43,7 +44,6 @@ extensions = [
         ('ariesk/ram.pyx', 'ariesk.ram'),
 
         ('ariesk/seed_align.pyx', 'ariesk.seed_align'),
-        #('ariesk/ssw.pyx', 'ariesk.ssw'),
     ]
 ] + [
     Extension(
@@ -54,14 +54,14 @@ extensions = [
         extra_link_args=['-Lariesk/_lib/ssw.c'],
         language='c++',
     ),
-    # Extension(
-    #     'ariesk.lib_ssw',
-    #     ['ariesk/_lib/ssw.c'],
-    #     include_dirs=[numpy.get_include(), 'ariesk/_lib/ssw.c'],
-    #     extra_compile_args=["-O3", "-ffast-math", "-march=native", "-fopenmp", '-Wno-error=declaration-after-statement'],
-    #     extra_link_args=['-Lariesk/_lib/ssw.c'],
-    #     language='c',
-    # )
+    Extension(
+        'ariesk.ckdtree',
+        ['ariesk/ckdtree.pyx'],
+        include_dirs=[numpy.get_include()] + list(glob('ariesk/_lib/*.h')) + list(glob('ariesk/_lib/*.cxx')),
+        extra_compile_args=extra_compile_args,
+        extra_link_args=['-Lariesk/_lib/ckdtree_decl.h'],
+        language='c++',
+    ),
 
 ]
 

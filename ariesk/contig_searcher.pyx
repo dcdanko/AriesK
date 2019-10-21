@@ -7,9 +7,9 @@ import numpy as np
 from libc.stdio cimport *
 from posix.stdio cimport * # FILE, fopen, fclose
 from libc.stdlib cimport malloc, free
-from scipy.spatial import cKDTree
-# from scipy.spatial cimport cKDTree as cKDTree_t
-# from ariesk.ckdtree cimport cKDTree
+#from scipy.spatial import cKDTree
+from ariesk.ckdtree cimport cKDTree
+
 #from skbio.alignment import StripedSmithWaterman
 # from skbio.alignment cimport StripedSmithWaterman as StripedSmithWaterman_t
 # from ariesk.lib_ssw cimport *
