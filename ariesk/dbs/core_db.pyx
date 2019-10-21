@@ -75,16 +75,16 @@ cdef class CoreDB:
                 binary_kmers[i, j] = binary_kmer[j]
         return binary_kmers
 
-    cdef double [:, :] c_get_centroids(self):
+    cdef double[:, :] c_get_centroids(self):
         """Return a memoryview on cetnroids in this db.
 
         Called just once on database load.
         """
-        centroid_strs = list(self.conn.execute('SELECT * FROM centroids'))
+        n_centroids = int(list(self.conn.execute('SELECT COUNT(*) FROM centroids'))[0][0])
         cdef int i, j
-        cdef double [:, :] centroids = np.ndarray((len(centroid_strs), self.ramifier.d))
-        cdef const double [:] centroid
-        for i, centroid_str in centroid_strs:
+        cdef double[:, :] centroids = np.ndarray((n_centroids, self.ramifier.d))
+        cdef const double[:] centroid
+        for i, centroid_str in self.conn.execute('SELECT * FROM centroids'):
             centroid = np.frombuffer(centroid_str, dtype=float, count=self.ramifier.d)
             for j in range(self.ramifier.d):
                 centroids[i, j] = centroid[j]

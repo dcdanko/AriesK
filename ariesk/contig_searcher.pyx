@@ -37,18 +37,24 @@ cdef class ContigSearcher:
     cdef public float radius
 
     def __cinit__(self, contig_db, logger=None):
+        if self.logger is not None:
+            self.logging = True
+            self.logger('Loading database...')
         self.db = contig_db
         self.centroid_rfts = self.db.c_get_centroids()
+        if self.logging:
+            self.logger(f'Retrieved centroids from database.')
         for i in range(self.centroid_rfts.shape[0]):
             for j in range(self.db.ramifier.d):
                 self.centroid_rfts[i, j] *= self.db.box_side_len
                 self.centroid_rfts[i, j] += (self.db.box_side_len / 2)
         self.tree = cKDTree(self.centroid_rfts)
+        if self.logging:
+            self.logger(f'Built search tree.')
         self.radius = (self.db.ramifier.d ** (0.5)) * self.db.box_side_len
         self.logger = logger
         self.logging = False
-        if self.logger is not None:
-            self.logging = True
+        if self.logging:
             self.logger(f'Searcher loaded. Radius {self.radius}, num. centers {self.centroid_rfts.shape[0]}')
 
     def py_search(self, str query, double coarse_radius, double kmer_fraction, double identity=0.5):
