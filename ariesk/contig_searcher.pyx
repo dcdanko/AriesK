@@ -31,7 +31,7 @@ cdef npc.uint8_t K_GAP = 3
 cdef class ContigSearcher:
     cdef public ContigDB db
     cdef public double[:, :] centroid_rfts
-    cdef public object tree
+    cdef public cKDTree tree
     cdef public object logger
     cdef public bint logging
     cdef public float radius
@@ -115,7 +115,7 @@ cdef class ContigSearcher:
             rft = self.db.ramifier.c_ramify(query[k_start:k_end])
             for j in range(self.db.ramifier.d):
                 rfts[i, j] = rft[j]
-        cdef object query_tree = cKDTree(rfts)
+        cdef cKDTree query_tree = cKDTree(rfts)
         cdef list centroid_hits
         cdef int hit
         cdef dict counts = {}
