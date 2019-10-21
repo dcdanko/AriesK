@@ -37,9 +37,11 @@ cdef class ContigSearcher:
     cdef public float radius
 
     def __cinit__(self, contig_db, logger=None):
-        if self.logger is not None:
+        self.logging = False
+        if logger is not None:
             self.logging = True
-            self.logger('Loading database...')
+            self.logger = logger
+            self.logger('Loading searcher...')
         self.db = contig_db
         self.db.c_get_centroids()
         self.centroid_rfts = np.ndarray(
@@ -56,8 +58,8 @@ cdef class ContigSearcher:
         if self.logging:
             self.logger(f'Built search tree.')
         self.radius = (self.db.ramifier.d ** (0.5)) * self.db.box_side_len
-        self.logger = logger
-        self.logging = False
+        
+        
         if self.logging:
             self.logger(f'Searcher loaded. Radius {self.radius}, num. centers {self.centroid_rfts.shape[0]}')
 
