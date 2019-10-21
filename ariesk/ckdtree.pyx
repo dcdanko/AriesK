@@ -111,7 +111,7 @@ cdef class cKDTree:
         logger=None
         ):
         self.logging = False
-        if self.logger is not None:
+        if logger is not None:
             self.logging = True
             self.logger = logger
 
