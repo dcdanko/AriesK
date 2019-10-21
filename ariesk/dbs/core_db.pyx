@@ -94,7 +94,7 @@ cdef class CoreDB:
         if self.centroids_loaded:
             return self.cached_centroids
         if self.logging:
-            self.logger('Loaing centroids from database...')
+            self.logger('Loading centroids from database...')
         n_centroids = int(list(self.conn.execute('SELECT COUNT(*) FROM centroids'))[0][0])
         cdef int i, j
         self.cached_centroids = np.ndarray((n_centroids, self.ramifier.d))
