@@ -16,6 +16,8 @@ cdef class ContigDB(CoreDB):
     cdef public dict contig_cache
     cdef public dict centroid_id_cache
     cdef public dict contig_kmer_cache
+    cdef public object logger
+    cdef public bint logging
 
     cpdef _build_tables(self)
     cpdef _build_indices(self)

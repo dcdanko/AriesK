@@ -146,4 +146,7 @@ cdef class ContigSearcher:
 
     @classmethod
     def from_filepath(cls, filepath, logger=None):
-        return cls(ContigDB.load_from_filepath(filepath), logger=logger)
+        return cls(
+            ContigDB.load_from_filepath(filepath, logger=logger),
+            logger=logger
+        )

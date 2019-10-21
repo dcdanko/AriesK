@@ -17,7 +17,7 @@ cdef simple_list(sql_cursor):
 
 cdef class CoreDB:
 
-    def __cinit__(self, conn, ramifier=None, box_side_len=None):
+    def __cinit__(self, conn, ramifier=None, box_side_len=None, logger=None):
         self.conn = conn
         self.centroid_insert_buffer = [None] * BUFFER_SIZE
         self.centroid_buffer_filled = 0

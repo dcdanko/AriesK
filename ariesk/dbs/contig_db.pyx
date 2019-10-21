@@ -24,8 +24,11 @@ BUFFER_SIZE = 10 * 1000
 
 cdef class ContigDB(CoreDB):
 
-    def __cinit__(self, conn, ramifier=None, box_side_len=None):
+    def __cinit__(self, conn, ramifier=None, box_side_len=None, logger=None):
         super().__init__(conn, ramifier=ramifier, box_side_len=box_side_len)
+        if logger is not None:
+            self.logging = True
+            self.logger = logger
         self.seq_block_len = SEQ_BLOCK_LEN
         self.current_seq_coord = 0
         self.genomes_added = set()
@@ -53,6 +56,8 @@ cdef class ContigDB(CoreDB):
             )
 
     cpdef _build_tables(self):
+        if self.logging:
+            self.logger('Building SQL tables...')
         self.conn.execute(
             '''CREATE TABLE IF NOT EXISTS contigs (
             seq_coord int, seq BLOB, genome_name text, contig_name text, contig_coord int
@@ -67,6 +72,8 @@ cdef class ContigDB(CoreDB):
         )
 
     cpdef _build_indices(self):
+        if self.logging:
+            self.logger('Building SQL indices...')
         self.conn.execute('CREATE INDEX IF NOT EXISTS IX_seq_coords_centroid ON seq_coords(centroid_id)')
         self.conn.execute('CREATE INDEX IF NOT EXISTS IX_contigs_coord ON contigs(seq_coord)')
 
@@ -254,10 +261,14 @@ cdef class ContigDB(CoreDB):
             self._build_indices()
 
     @classmethod
-    def load_from_filepath(cls, filepath):
+    def load_from_filepath(cls, filepath, logger=None):
         """Return a GridCoverDB."""
+        if logger is not None:
+            logger('Connecting to SQL database...')
         connection = sqlite3.connect(filepath, cached_statements=10 * 1000)
-        return ContigDB(connection)
+        if logger is not None:
+            logger('Loading resources from database...')
+        return ContigDB(connection, logger=logger)
 
     def fast_add_kmers_from_fasta(self, str filename):
         cdef FILE * cfile = fopen(filename.encode("UTF-8"), "rb")
