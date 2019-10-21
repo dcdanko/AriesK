@@ -209,6 +209,8 @@ cdef class cKDTree:
 
     cdef query_ball_tree(cKDTree self, cKDTree other,
                         np.float64_t r, np.float64_t p=2., np.float64_t eps=0):
+        if self.logging:
+            self.logger('[KD-Tree] Starting Query...')
 
         cdef:
             vector[np.intp_t] **vvres
