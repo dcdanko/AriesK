@@ -232,10 +232,12 @@ cdef class cKDTree:
             for i in range(n):
                 vvres[i] = new vector[np.intp_t]()
 
-            # query in C++
+            if self.logging:
+                self.logger('[KD-Tree] Starting C Tree Query...')
             with nogil:
                 query_ball_tree(self.cself, other.cself, r, p, eps, vvres)
-
+            if self.logging:
+                self.logger('[KD-Tree] Finished C Tree Query.')
             # store the results in a list of lists
             results = n * [None]
             for i in range(n):
