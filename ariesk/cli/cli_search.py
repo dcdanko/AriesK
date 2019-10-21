@@ -35,7 +35,7 @@ class TimingLogger:
             unit = 'm'
         if time_elapsed < 1:
             time_elapsed
-        msg = f'[{time_elapsed:.3}{unit}] {msg}'
+        msg = f'[{time_elapsed:.4}{unit}] {msg}'
         self.logger(msg)
         self.last_message_time = time()
 
