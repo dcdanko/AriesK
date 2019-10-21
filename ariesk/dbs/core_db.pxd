@@ -13,6 +13,8 @@ cdef class CoreDB:
     cdef public list kmer_insert_buffer
     cdef public int centroid_buffer_filled
     cdef public int kmer_buffer_filled
+    cdef public object logger
+    cdef public bint logging
 
     cpdef _build_core_tables(self)
     cdef double[:, :] c_get_centroids(self)

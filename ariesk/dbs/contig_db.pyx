@@ -26,9 +26,6 @@ cdef class ContigDB(CoreDB):
 
     def __cinit__(self, conn, ramifier=None, box_side_len=None, logger=None):
         super().__init__(conn, ramifier=ramifier, box_side_len=box_side_len)
-        if logger is not None:
-            self.logging = True
-            self.logger = logger
         self.seq_block_len = SEQ_BLOCK_LEN
         self.current_seq_coord = 0
         self.genomes_added = set()
@@ -54,6 +51,8 @@ cdef class ContigDB(CoreDB):
                     ('current_seq_coord', str(self.current_seq_coord)),
                 ]
             )
+        if self.logging:
+            logger('Loaded Contig Database.')
 
     cpdef _build_tables(self):
         if self.logging:

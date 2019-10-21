@@ -18,6 +18,11 @@ cdef simple_list(sql_cursor):
 cdef class CoreDB:
 
     def __cinit__(self, conn, ramifier=None, box_side_len=None, logger=None):
+        self.logging = False
+        if logger is not None:
+            self.logging = True
+            self.logger = logger
+            self.logger('Loading core database...')
         self.conn = conn
         self.centroid_insert_buffer = [None] * BUFFER_SIZE
         self.centroid_buffer_filled = 0
@@ -31,6 +36,8 @@ cdef class CoreDB:
 
         self._build_core_tables()
         if ramifier is None:
+            if self.logging:
+                logger('Loading Ramifier from database...')
             self.ramifier = self.load_ramifier()
             self.box_side_len = float(self.conn.execute(
                 'SELECT value FROM basics WHERE name=?', ('box_side_len',)
@@ -49,8 +56,12 @@ cdef class CoreDB:
             )
             self.ramifier = ramifier
             self.save_ramifier()
+        if self.logging:
+            logger('Loaded Core Database.')
 
     cpdef _build_core_tables(self):
+        if self.logging:
+            self.logger('Building core SQL tables...')
         self.conn.execute('CREATE TABLE IF NOT EXISTS basics (name text, value text)')
         self.conn.execute('CREATE TABLE IF NOT EXISTS centroids (centroid_id int, vals BLOB)')
         self.conn.execute('CREATE TABLE IF NOT EXISTS seqs (centroid_id int, seq BLOB, annotation text)')
@@ -80,6 +91,8 @@ cdef class CoreDB:
 
         Called just once on database load.
         """
+        if self.logging:
+            self.logger('Loaing centroids from database...')
         n_centroids = int(list(self.conn.execute('SELECT COUNT(*) FROM centroids'))[0][0])
         cdef int i, j
         cdef double[:, :] centroids = np.ndarray((n_centroids, self.ramifier.d))
