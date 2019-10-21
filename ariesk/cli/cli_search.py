@@ -12,6 +12,7 @@ from ariesk.ram import (
     RotatingRamifier,
 )
 
+
 class TimingLogger:
 
     def __init__(self, logger):
@@ -20,8 +21,21 @@ class TimingLogger:
 
     def log(self, msg):
         time_elapsed = time() - self.last_message_time
-        time_elapsed *= 1000
-        msg = f'[{time_elapsed:.3}ms] {msg}'
+        unit = 's'
+        if time_elapsed < 1:
+            for myunit in ['ms', 'us', 'ns']:
+                if time_elapsed < 1:
+                    time_elapsed *= 1000
+                    unit = myunit
+        elif time_elapsed > 3600:
+            time_elapsed /= 3600
+            unit = 'h'
+        elif time_elapsed > 60:
+            time_elapsed /= 60
+            unit = 'm'
+        if time_elapsed < 1:
+            time_elapsed
+        msg = f'[{time_elapsed:.3}{unit}] {msg}'
         self.logger(msg)
         self.last_message_time = time()
 
