@@ -56,7 +56,7 @@ cdef class ContigSearcher:
                 self.centroid_rfts[i, j] += (self.db.box_side_len / 2)
         if self.logging:
             self.logger(f'Building search tree...')
-        self.tree = cKDTree(self.centroid_rfts)
+        self.tree = cKDTree(self.centroid_rfts, logger=logger)
         if self.logging:
             self.logger(f'Built search tree.')
         self.radius = (self.db.ramifier.d ** (0.5)) * self.db.box_side_len

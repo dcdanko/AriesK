@@ -69,6 +69,9 @@ cdef class cKDTree:
         readonly object          boxsize
         np.ndarray               boxsize_data
 
+    cdef public object logger
+    cdef public bint logging
+
     cdef _pre_init(cKDTree self)
     cdef _post_init(cKDTree self)
     cdef _post_init_traverse(cKDTree self, ckdtreenode *node)

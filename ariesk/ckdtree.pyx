@@ -101,9 +101,20 @@ cdef class cKDTree:
         self.cself = <ckdtree * > PyMem_Malloc(sizeof(ckdtree))
         self.cself.tree_buffer = NULL
 
-    def __init__(cKDTree self, double[:, :] data, np.intp_t leafsize=16, compact_nodes=True,
-            copy_data=False, balanced_tree=True):
-        
+    def __init__(
+        cKDTree self,
+        double[:, :] data,
+        np.intp_t leafsize=16,
+        compact_nodes=True,
+        copy_data=False,
+        balanced_tree=True,
+        logger=None
+        ):
+        self.logging = False
+        if self.logger is not None:
+            self.logging = True
+            self.logger = logger
+
         cdef: 
             np.float64_t [::1] tmpmaxes, tmpmins
             np.float64_t *ptmpmaxes
@@ -116,19 +127,18 @@ cdef class cKDTree:
         cself.m = data.shape[1]
         cself.leafsize = leafsize
 
-        if leafsize<1:
-            raise ValueError("leafsize must be at least 1")
-
         self.boxsize = None
         self.boxsize_data = None
 
         self.maxes = np.ascontiguousarray(
-            np.amax(self.data, axis=0) if self.n > 0 else np.zeros(self.m),
-            dtype=np.float64)
+            np.amax(self.data, axis=0),
+            dtype=np.float64
+        )
         self.mins = np.ascontiguousarray(
-            np.amin(self.data,axis=0) if self.n > 0 else np.zeros(self.m),
-            dtype=np.float64)
-        self.indices = np.ascontiguousarray(np.arange(self.n,dtype=np.intp))
+            np.amin(self.data, axis=0),
+            dtype=np.float64
+        )
+        self.indices = np.ascontiguousarray(np.arange(self.n, dtype=np.intp))
 
         self._pre_init()
 
@@ -139,12 +149,15 @@ cdef class cKDTree:
 
         tmpmaxes = np.copy(self.maxes)
         tmpmins = np.copy(self.mins)
-        
+
         ptmpmaxes = &tmpmaxes[0]
         ptmpmins = &tmpmins[0]
+        if self.logging:
+            self.logger('[KD-Tree] Calling C Build Routine...')
         with nogil: 
             build_ckdtree(cself, 0, cself.n, ptmpmaxes, ptmpmins, median, compact)
-
+        if self.logging:
+            self.logger('[KD-Tree] Finished C Build Routine.')
         # set up the tree structure pointers
         self._post_init()
 
@@ -203,11 +216,6 @@ cdef class cKDTree:
             np.intp_t *cur
             list results
             list tmp
-
-        # Make sure trees are compatible
-        if self.m != other.m:
-            raise ValueError("Trees passed to query_ball_tree have different "
-                             "dimensionality")
 
         n = self.n
 
@@ -281,9 +289,6 @@ cdef class cKDTree:
 
         # FIXME: use templates to avoid the type conversion
         proper_weights = np.ascontiguousarray(weights, dtype=np.float64)
-
-        if len(proper_weights) != self.n:
-            raise ValueError('Number of weights differ from the number of data points')
 
         pnw = &node_weights[0]
         ppw = &proper_weights[0]
