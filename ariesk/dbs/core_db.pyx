@@ -24,6 +24,7 @@ cdef class CoreDB:
             self.logger = logger
             self.logger('Loading core database...')
         self.conn = conn
+        self.centroids_loaded = False
         self.centroid_insert_buffer = [None] * BUFFER_SIZE
         self.centroid_buffer_filled = 0
         self.kmer_insert_buffer = [None] * BUFFER_SIZE
@@ -91,17 +92,20 @@ cdef class CoreDB:
 
         Called just once on database load.
         """
+        if self.centroids_loaded:
+            return self.cached_centroids
         if self.logging:
             self.logger('Loaing centroids from database...')
         n_centroids = int(list(self.conn.execute('SELECT COUNT(*) FROM centroids'))[0][0])
         cdef int i, j
-        cdef double[:, :] centroids = np.ndarray((n_centroids, self.ramifier.d))
+        self.cached_centroids = np.ndarray((n_centroids, self.ramifier.d))
         cdef const double[:] centroid
         for i, centroid_str in self.conn.execute('SELECT * FROM centroids'):
             centroid = np.frombuffer(centroid_str, dtype=float, count=self.ramifier.d)
             for j in range(self.ramifier.d):
-                centroids[i, j] = centroid[j]
-        return centroids
+                self.cached_centroids[i, j] = centroid[j]
+        self.centroids_loaded = True
+        return self.cached_centroids
 
     def close(self):
         """Close the DB and flush data to disk."""
