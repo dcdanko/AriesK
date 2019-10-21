@@ -107,7 +107,7 @@ cdef class cKDTree:
         np.intp_t leafsize=16,
         compact_nodes=False,
         copy_data=False,
-        balanced_tree=False,
+        balanced_tree=True,
         logger=None
         ):
         self.logging = False
