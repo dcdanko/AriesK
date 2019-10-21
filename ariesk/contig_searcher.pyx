@@ -30,7 +30,7 @@ cdef npc.uint8_t K_GAP = 3
 
 cdef class ContigSearcher:
     cdef public ContigDB db
-    cdef public double[:, :] centroid_rfts
+    cdef public npc.ndarray centroid_rfts
     cdef public object tree
     cdef public object logger
     cdef public bint logging
@@ -41,11 +41,15 @@ cdef class ContigSearcher:
             self.logging = True
             self.logger('Loading database...')
         self.db = contig_db
-        self.centroid_rfts = self.db.c_get_centroids()
+        self.db.c_get_centroids()
+        self.centroid_rfts = np.ndarray(
+            (self.db.cached_centroids.shape[0], self.db.cached_centroids.shape[1])
+        )
         if self.logging:
-            self.logger(f'Retrieved centroids from database.')
-        for i in range(self.centroid_rfts.shape[0]):
+            self.logger(f'Building search tree...')
+        for i in range(self.db.cached_centroids.shape[0]):
             for j in range(self.db.ramifier.d):
+                self.centroid_rfts[i, j] = self.db.cached_centroids[i, j]
                 self.centroid_rfts[i, j] *= self.db.box_side_len
                 self.centroid_rfts[i, j] += (self.db.box_side_len / 2)
         self.tree = cKDTree(self.centroid_rfts)

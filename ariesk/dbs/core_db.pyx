@@ -31,7 +31,6 @@ cdef class CoreDB:
         self.kmer_buffer_filled = 0
 
         self.centroid_cache = {}
-        cdef double[:, :] centroids
         cdef bytes centroid_key
         cdef int i
 
@@ -43,9 +42,9 @@ cdef class CoreDB:
             self.box_side_len = float(self.conn.execute(
                 'SELECT value FROM basics WHERE name=?', ('box_side_len',)
             ).fetchone()[0])
-            centroids = self.c_get_centroids()
-            for i in range(centroids.shape[0]):
-                centroid_key = np.array(centroids[i, :], dtype=float).tobytes()
+            self.c_get_centroids()
+            for i in range(self.cached_centroids.shape[0]):
+                centroid_key = np.array(self.cached_centroids[i, :], dtype=float).tobytes()
                 self.centroid_cache[centroid_key] = i
         else:
             if box_side_len is None:
