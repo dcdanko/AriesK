@@ -63,7 +63,7 @@ cdef class ContigSearcher:
         self.lsh_index = LSHIndex(
             self.db,
             self.db.cached_centroids,
-            2,
+            6,
             1
         )
         if self.logging:
