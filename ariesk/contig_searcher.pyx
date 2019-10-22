@@ -60,6 +60,8 @@ cdef class ContigSearcher:
             self.logger(f'Building search tree...')
         self.tree = cKDTree(self.centroid_rfts, logger=logger)
         '''
+        if self.logging:
+            self.logger(f'Building LSH Index...')
         self.lsh_index = LSHIndex(
             self.db,
             self.db.cached_centroids,
