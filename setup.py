@@ -44,6 +44,7 @@ extensions = [
         ('ariesk/ram.pyx', 'ariesk.ram'),
 
         ('ariesk/seed_align.pyx', 'ariesk.seed_align'),
+        ('ariesk/lsh_index.pyx', 'ariesk.lsh_index'),
     ]
 ] + [
     Extension(

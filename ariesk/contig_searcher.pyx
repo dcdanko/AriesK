@@ -9,7 +9,7 @@ from posix.stdio cimport * # FILE, fopen, fclose
 from libc.stdlib cimport malloc, free
 #from scipy.spatial import cKDTree
 from ariesk.ckdtree cimport cKDTree
-
+from ariesk.lsh_index cimport LSHIndex
 #from skbio.alignment import StripedSmithWaterman
 # from skbio.alignment cimport StripedSmithWaterman as StripedSmithWaterman_t
 # from ariesk.lib_ssw cimport *
@@ -32,6 +32,7 @@ cdef class ContigSearcher:
     cdef public ContigDB db
     cdef public double[:, :] centroid_rfts
     cdef public cKDTree tree
+    cdef public LSHIndex lsh_index
     cdef public object logger
     cdef public bint logging
     cdef public float radius
@@ -44,6 +45,7 @@ cdef class ContigSearcher:
             self.logger('Loading searcher...')
         self.db = contig_db
         self.db.c_get_centroids()
+        '''
         self.centroid_rfts = np.ndarray(
             (self.db.cached_centroids.shape[0], self.db.cached_centroids.shape[1])
         )
@@ -57,6 +59,13 @@ cdef class ContigSearcher:
         if self.logging:
             self.logger(f'Building search tree...')
         self.tree = cKDTree(self.centroid_rfts, logger=logger)
+        '''
+        self.lsh_index = LSHIndex(
+            self.db,
+            self.db.cached_centroids,
+            2,
+            1
+        )
         if self.logging:
             self.logger(f'Built search tree.')
         self.radius = (self.db.ramifier.d ** (0.5)) * self.db.box_side_len
@@ -105,6 +114,21 @@ cdef class ContigSearcher:
 
     cdef dict coarse_search(self, int n_kmers, npc.uint8_t[:] query, double coarse_radius):
         cdef double[:] rft
+        cdef dict counts = {}
+        cdef int i, j, k_start, k_end
+        for i in range(n_kmers):
+            k_start = i * (self.db.ramifier.k // 2)
+            k_end = k_start + self.db.ramifier.k
+            rft = np.floor(
+                self.db.ramifier.c_ramify(query[k_start:k_end]) / self.db.box_side_len,
+                casting='safe'
+            )
+            for seq_coord in self.lsh_index.query(rft):
+                counts[seq_coord] = 1 + counts.get(seq_coord, 0)
+        return counts
+    '''
+    cdef dict coarse_search(self, int n_kmers, npc.uint8_t[:] query, double coarse_radius):
+        cdef double[:] rft
         cdef double[:, :] rfts = np.ndarray(
             (n_kmers, self.db.ramifier.d)
         )
@@ -124,7 +148,7 @@ cdef class ContigSearcher:
                 for seq_coord in self.db.get_coords(hit):
                     counts[seq_coord] = 1 + counts.get(seq_coord, 0)
         return counts
-
+    '''
     def search_contigs_from_fasta(self, str filename, double coarse_radius, double kmer_fraction, double identity):
         cdef FILE * cfile = fopen(filename.encode("UTF-8"), "rb")
         if cfile == NULL:
