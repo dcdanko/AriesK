@@ -74,7 +74,7 @@ cdef class ContigSearcher:
         
         
         if self.logging:
-            self.logger(f'Searcher loaded. Radius {self.radius}, num. centers {self.centroid_rfts.shape[0]}')
+            self.logger(f'Searcher loaded. Radius {self.radius}, num. centers {self.db.cached_centroids.shape[0]}')
 
     def py_search(self, str query, double coarse_radius, double kmer_fraction, double identity=0.5):
         return [

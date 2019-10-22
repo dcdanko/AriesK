@@ -1,6 +1,9 @@
 
 from ariesk.dbs.contig_db cimport ContigDB
 cimport numpy as npc
+from libcpp.vector cimport vector
+from libcpp.unordered_map cimport unordered_map
+
 import numpy as np
 
 
@@ -10,9 +13,9 @@ cdef class LSHIndex:
         self.tbl = {}
         self.dims = dims
         cdef int i, d, r
-        cdef tuple key
+        cdef bytes key
         for i in range(pts.shape[0]):
-            key = tuple(pts[i, :self.dims])
+            key = np.array(pts[i, :self.dims]).tobytes()
             try:
                 self.tbl[key] |= set(db.get_coords(i))
             except KeyError:
@@ -33,13 +36,13 @@ cdef class LSHIndex:
 
     cdef set query(LSHIndex self, double[:] pt):
         cdef int i, j
-        cdef tuple key
+        cdef bytes key
         cdef set out = set()
         cdef double[:] mu = np.ndarray((self.dims,))
         for i in range(self.delta.shape[0]):
             for j in range(self.dims):
                 mu[j] = pt[j] + self.delta[i, j]
-            key = tuple(mu)
+            key = np.array(mu).tobytes()
             if key in self.tbl:
                 out |= self.tbl[key]
         return out
