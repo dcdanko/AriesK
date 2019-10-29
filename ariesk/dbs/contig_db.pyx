@@ -96,6 +96,9 @@ cdef class ContigDB(CoreDB):
         self.contig_cache[centroid_id] = out
         return out
 
+    cdef npc.uint8_t[:] get_seq(self, str genome_name, str contig_name, int start_coord, int end_coord):
+        assert False
+
     cdef add_contig_seq(self,
                         str genome_name, str contig_name, int centroid_id,
                         int start_coord, int end_coord, npc.uint8_t[:] contig_section):
