@@ -20,10 +20,8 @@ cdef class ContigDB(CoreDB):
     cpdef _build_tables(self)
     cpdef _build_indices(self)
     cpdef _drop_indices(self)
-    cpdef list get_coords(self, int centroid_id)
-    cpdef tuple get_contig(self, int seq_coord)
-    cdef npc.uint32_t[:, :] get_contig_kmers(self, int seq_coord, int k)
-    cdef add_contig_seq(self, str genome_name, str contig_name, int seq_coord, int contig_coord, npc.uint8_t[:] contig_section)
-    cdef add_coord_to_centroid(self, int centroid_id, int seq_coord)
+    cpdef tuple get_contigs(self, int centroid_id)
+    cdef add_contig_seq(self,
+                        str genome_name, str contig_name, int centroid_id,
+                        int start_coord, int end_coord, npc.uint8_t[:] contig_section)
     cdef add_contig(self, str genome_name, str contig_name, npc.uint8_t[:] contig, int gap=?)
-    cdef _clear_coord_buffer(self)
