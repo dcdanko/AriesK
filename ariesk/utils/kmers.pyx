@@ -35,6 +35,8 @@ cdef npc.uint8_t [::] encode_kmer_from_buffer(char * buf, int k):
             kmer[i] = 4
         elif c == b'\n':
             i -= 1  # special case for line wrapping in fasta
+        else:
+            kmer[i] = 4
         i += 1
         buf += 1
     return kmer
@@ -60,6 +62,8 @@ cdef npc.uint8_t [::] encode_seq_from_buffer(char * buf, int max_len):
             seq[i] = 4
         elif c == b'\n':
             i -= 1  # special case for line wrapping in fasta
+        else:
+            seq[i] = 4
         i += 1
         j += 1
         buf += 1

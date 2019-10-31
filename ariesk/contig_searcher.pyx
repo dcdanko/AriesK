@@ -134,8 +134,9 @@ cdef class ContigSearcher:
             self.logger(f'Coarse merge complete.')
         cdef str contig_key
         cdef npc.uint64_t[:, :] matched_intervals
+        cdef list out = []
         for contig_key, matched_intervals in merged_coarse_hits.items():
-            out = self.fine_search(query, contig_key, matched_intervals, identity_thresh)
+            out += self.fine_search(query, contig_key, matched_intervals, identity_thresh)
         if self.logging:
             self.logger(f'Fine search complete. {len(out)} passed.')
         return out
@@ -153,15 +154,28 @@ cdef class ContigSearcher:
                 for q_start, q_end in query_intervals:
                     contig.append((q_start, q_end, c_start, c_end))
         cdef list matched_pos_list
-        cdef npc.uint64_t[:, :] matched_pos
+        cdef npc.uint64_t[:, :] matched_pos, buffer_pos
         cdef npc.ndarray order
         for contig_key, matched_pos_list in matched_pos_by_contig.items():
-            matched_pos = np.array(matched_pos_list, dtype=np.uint64)
-            order = np.array(matched_pos[:, 2]).argsort()
-            matched_pos = np.array(matched_pos, dtype=np.uint64)[order, :]
-            order = np.array(matched_pos[:, 0]).argsort()
-            matched_pos = np.array(matched_pos, dtype=np.uint64)[order, :]
+            matched_pos = np.array(matched_pos_list, dtype=np.uint64)[:20,:]
+            buffer_pos = np.ndarray((matched_pos.shape[0], matched_pos.shape[1]), dtype=np.uint64)
+
+            order = np.array(matched_pos[:, 2]).argsort(axis=0)
+            for i in range(order.shape[0]):
+                buffer_pos[i][0] = matched_pos[order[i]][0]
+                buffer_pos[i][1] = matched_pos[order[i]][1]
+                buffer_pos[i][2] = matched_pos[order[i]][2]
+                buffer_pos[i][3] = matched_pos[order[i]][3]
+            order = np.array(buffer_pos[:, 0]).argsort(axis=0, kind='stable')
+            for i in range(order.shape[0]):
+                matched_pos[i][0] = buffer_pos[order[i]][0]
+                matched_pos[i][1] = buffer_pos[order[i]][1]
+                matched_pos[i][2] = buffer_pos[order[i]][2]
+                matched_pos[i][3] = buffer_pos[order[i]][3]
+
+            matched_pos = np.array(matched_pos, dtype=np.uint64)[order]
             matched_pos = condense_intervals(self.db.ramifier.k, matched_pos)
+            # print(np.array(matched_pos))
             matched_pos_by_contig[contig_key] = matched_pos
         return matched_pos_by_contig
 
@@ -174,16 +188,23 @@ cdef class ContigSearcher:
         cdef StripedSmithWaterman aligner
         cdef double align_score
         for interval_i in range(matched_pos.shape[0]):
-            qstart = max(0, matched_pos[interval_i, 0] - slop)
+            qstart = 0
+            if slop < matched_pos[interval_i, 0]:
+                qstart = matched_pos[interval_i, 0] - slop
             qend = min(query.shape[0], matched_pos[interval_i, 1] + slop)
             qseq = query[qstart:qend]
-            tstart = matched_pos[interval_i, 2] - slop
+            tstart = 0
+            if matched_pos[interval_i, 2] > slop:
+                tstart = matched_pos[interval_i, 2] - slop
             tend = matched_pos[interval_i, 3] + slop
+            if (qend - qstart) < self.db.ramifier.k or (tend - tstart) < self.db.ramifier.k:
+                continue
             tseq = self.db.get_seq(contig_name, tstart, tend)
             aligner = StripedSmithWaterman(qseq)
             align_score = aligner.align(tseq)
+            #align_score = needle_dist(qseq, tseq, True)
             if align_score >= perc_id_thresh:
-                out.append((align_score, qstart, qend, tstart, tend, qseq, tseq))
+                out.append((contig_name, align_score, qstart, qend, tstart, tend, qseq, tseq))
         return out
 
     cdef double[:, :] _query_kmers(self, int n_kmers, npc.uint8_t[:] query, int kmer_gap):
@@ -239,7 +260,7 @@ cdef class ContigSearcher:
             read = getdelim(&line, &l, b'>', cfile)
             if read == -1: break
             seq = encode_seq_from_buffer(line, l)
-            out[decode_kmer(seq)] = self.search(seq, coarse_radius, kmer_fraction, identity)
+            out[str(header)] = self.search(seq, coarse_radius, kmer_fraction, identity)
             n_added += 1
             header = NULL
             line = NULL  # I don't understand why this line is necessary but
