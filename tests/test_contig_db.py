@@ -30,7 +30,7 @@ class TestContigDB(TestCase):
         ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
         contig_db = ContigDB(conn, ramifier=ramifier, box_side_len=0.5)
         contig = random_kmer(2 * 10 * 1000)
-        contig_db.py_add_contig('test_genome', 'test_contig', contig, gap=100)
+        contig_db.py_add_contig('test_genome___test_contig', contig, gap=100)
         contig_db.commit()
         stored = contig_db.get_all_contigs()
         self.assertGreaterEqual(len(stored), 2)
@@ -40,14 +40,14 @@ class TestContigDB(TestCase):
         ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
         contig_db_1 = ContigDB(conn_1, ramifier=ramifier, box_side_len=0.5)
         contig = random_kmer(2 * 10 * 1000)
-        contig_db_1.py_add_contig('test_genome_1', 'test_contig_1', contig, gap=100)
+        contig_db_1.py_add_contig('test_genome_1___test_contig_1', contig, gap=100)
         contig_db_1.commit()
         n_stored = len(contig_db_1.get_all_contigs())
 
         conn_2 = sqlite3.connect(':memory:')
         contig_db_2 = ContigDB(conn_2, ramifier=ramifier, box_side_len=0.5)
         contig = random_kmer(2 * 10 * 1000)
-        contig_db_2.py_add_contig('test_genome_2', 'test_contig_2', contig, gap=100)
+        contig_db_2.py_add_contig('test_genome_2___test_contig_2', contig, gap=100)
         contig_db_2.commit()
         n_stored += len(contig_db_2.get_all_contigs())
 
@@ -65,7 +65,7 @@ class TestContigDB(TestCase):
         ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
         contig_db = ContigDB(conn, ramifier=ramifier, box_side_len=1)
         contig = random_kmer(2 * 10 * 1000)
-        contig_db.py_add_contig('test_genome', 'test_contig', contig, gap=100)
+        contig_db.py_add_contig('test_genome___test_contig', contig, gap=100)
         contig_db.commit()
         from_store = ContigDB.load_from_filepath(fname)
         self.assertEqual(contig_db.current_seq_coord, from_store.current_seq_coord)
@@ -90,7 +90,7 @@ class TestContigDB(TestCase):
         ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
         contig_db = ContigDB(conn, ramifier=ramifier, box_side_len=0.5)
         contig = random_kmer(2 * 10 * 1000)
-        contig_db.py_add_contig('test_genome', 'test_contig', contig, gap=10)
+        contig_db.py_add_contig('test_genome___test_contig', contig, gap=10)
         contig_db.commit()
         stored = contig_db.get_all_contigs()
         searcher = ContigSearcher(contig_db)
@@ -102,7 +102,7 @@ class TestContigDB(TestCase):
         ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
         contig_db = ContigDB(conn, ramifier=ramifier, box_side_len=0.5)
         contig = random_kmer(2 * 10 * 1000)
-        contig_db.py_add_contig('test_genome', 'test_contig', contig, gap=10)
+        contig_db.py_add_contig('test_genome___test_contig', contig, gap=10)
         contig_db.commit()
         stored = contig_db.get_all_contigs()
         searcher = ContigSearcher(contig_db)
@@ -118,7 +118,7 @@ class TestContigDB(TestCase):
         n_contigs, contig_len = 3, 2 * 10 * 1000
         contigs = [random_kmer(contig_len) for _ in range(n_contigs)]
         for i, contig in enumerate(contigs):
-            contig_db.py_add_contig(f'test_genome_{i}', f'test_contig_{i}', contig, gap=1)
+            contig_db.py_add_contig(f'test_genome_{i}___test_contig_{i}', contig, gap=1)
         contig_db.commit()
         self.assertEqual(contig_db.centroids().shape[0], n_contigs * (contig_len - 31 + 1))
 

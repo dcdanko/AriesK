@@ -202,6 +202,8 @@ cdef class ContigSearcher:
             tseq = self.db.get_seq(contig_name, tstart, tend)
             aligner = StripedSmithWaterman(qseq)
             align_score = aligner.align(tseq)
+            align_score /= 2 * (qend - qstart)
+            align_score *= 100
             #align_score = needle_dist(qseq, tseq, True)
             if align_score >= perc_id_thresh:
                 out.append((contig_name, align_score, qstart, qend, tstart, tend, qseq, tseq))
@@ -260,7 +262,7 @@ cdef class ContigSearcher:
             read = getdelim(&line, &l, b'>', cfile)
             if read == -1: break
             seq = encode_seq_from_buffer(line, l)
-            out[str(header)] = self.search(seq, coarse_radius, kmer_fraction, identity)
+            out[str(header).strip()[2:-3].strip()] = self.search(seq, coarse_radius, kmer_fraction, identity)
             n_added += 1
             header = NULL
             line = NULL  # I don't understand why this line is necessary but

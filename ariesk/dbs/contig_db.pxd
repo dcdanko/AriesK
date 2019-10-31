@@ -25,5 +25,5 @@ cdef class ContigDB(CoreDB):
     cdef add_contig_seq(self,
                         str contig_name, int centroid_id,
                         int start_coord, int end_coord)
-    cdef add_contig(self, str genome_name, str contig_name, npc.uint8_t[:] contig, int gap=?)
+    cdef add_contig(self, str contig_name, npc.uint8_t[:] contig, int gap=?)
     cdef npc.uint8_t[:] get_seq(self, str contig_name, int start_coord, int end_coord)

@@ -22,6 +22,7 @@ GENOME_GAP = 20
 BUFFER_SIZE = 10 * 1000
 
 
+
 cdef class ContigDB(CoreDB):
 
     def __cinit__(self, conn, ramifier=None, box_side_len=None, logger=None):
@@ -126,14 +127,14 @@ cdef class ContigDB(CoreDB):
             )
         )
 
-    def py_add_contig(self, str genome_name, str contig_name, str contig, int gap=1):
-        self.add_contig(genome_name, contig_name, encode_kmer(contig), gap=gap)
+    def py_add_contig(self, str contig_name, str contig, int gap=1):
+        self.add_contig(contig_name, encode_kmer(contig), gap=gap)
 
-    cdef add_contig(self, str genome_name, str contig_name, npc.uint8_t[:] contig, int gap=1):
+    cdef add_contig(self, str contig_name, npc.uint8_t[:] contig, int gap=1):
         self.conn.execute(
             'INSERT INTO nucl_seqs VALUES (?,?)',
             (
-                genome_name + contig_name,
+                contig_name,
                 np.array(contig, dtype=np.uint8).tobytes(),
             )
         )
@@ -149,7 +150,7 @@ cdef class ContigDB(CoreDB):
                 current_centroid_id = centroid_id
             if centroid_id != current_centroid_id:
                 self.add_contig_seq(
-                    genome_name + contig_name, current_centroid_id,
+                    contig_name, current_centroid_id,
                     section_start, section_end
 
                 )
@@ -158,7 +159,7 @@ cdef class ContigDB(CoreDB):
             section_end = i + self.ramifier.k
         if section_end > section_start:
             self.add_contig_seq(
-                genome_name + contig_name, current_centroid_id,
+                contig_name, current_centroid_id,
                 section_start, section_end
             )
 
@@ -228,7 +229,7 @@ cdef class ContigDB(CoreDB):
             read = getdelim(&line, &l, b'>', cfile)
             if read == -1: break
             seq = encode_seq_from_buffer(line, l)
-            self.add_contig(filename.strip(), str(header).strip()[1:], seq)
+            self.add_contig(filename.strip() + '___' + str(header).strip()[2:-3].strip(), seq)
             n_added += 1
             header = NULL
             line = NULL  # I don't understand why this line is necessary but
