@@ -30,6 +30,7 @@ cdef class ContigDB(CoreDB):
         self.current_seq_coord = 0
         self.genomes_added = set()
         self.contig_cache = {}
+        self.seq_cache = {}
         self.contig_kmer_cache = {}
         self.centroid_id_cache = {}
         self._build_tables()
@@ -53,11 +54,15 @@ cdef class ContigDB(CoreDB):
             self.logger('Building SQL tables...')
         self.conn.execute(
             '''CREATE TABLE IF NOT EXISTS contigs (
-            genome_name text,
             contig_name text,
             centroid_id int,
             start_coord int,
-            end_coord int,
+            end_coord int
+            )'''
+        )
+        self.conn.execute(
+            '''CREATE TABLE IF NOT EXISTS nucl_seqs (
+            contig_name text,
             seq BLOB
             )'''
         )
@@ -66,48 +71,58 @@ cdef class ContigDB(CoreDB):
         if self.logging:
             self.logger('Building SQL indices...')
         self.conn.execute('CREATE INDEX IF NOT EXISTS IX_contigs_centroid ON contigs(centroid_id)')
+        self.conn.execute('CREATE INDEX IF NOT EXISTS IX_nucl_seqs_genome ON nucl_seqs(contig_name)')
 
     cpdef _drop_indices(self):
         self.conn.execute('DROP INDEX IF EXISTS IX_contigs_centroid')
+        self.conn.execute('DROP INDEX IF EXISTS IX_nucl_seqs_genome')
 
     def get_all_contigs(self):
         cdef list out = []
-        cdef const npc.uint8_t[:] contig
         for vals in self.conn.execute('SELECT * FROM contigs'):
-            genome_name, contig_name, centroid_id, start_coord, end_coord, contig = vals
-            contig = np.frombuffer(contig, dtype=np.uint8)
-            kmer = decode_kmer(contig)
-            out.append((genome_name, contig_name, centroid_id, start_coord, end_coord, contig))
+            contig_name, centroid_id, start_coord, end_coord = vals
+            out.append((contig_name, centroid_id, start_coord, end_coord))
         return out
 
-    cpdef tuple get_contigs(self, int centroid_id):
+    cpdef list get_contigs(self, int centroid_id):
         if centroid_id in self.contig_cache:
             return self.contig_cache[centroid_id]
         cmd = '''
-            SELECT genome_name, contig_name, start_coord, end_coord, seq
+            SELECT contig_name, start_coord, end_coord
             FROM contigs
             WHERE centroid_id=?
         '''
         cursor = self.conn.execute(cmd, (centroid_id,))
         cdef list out = []
-        for genome_name, contig_name, start_coord, end_coord, seq_blob in cursor:
-            contig = np.frombuffer(seq_blob, dtype=np.uint8)
-            out.append((genome_name, contig_name, start_coord, end_coord, np.copy(contig)))
+        for contig_name, start_coord, end_coord in cursor:
+            out.append((contig_name, start_coord, end_coord))
         self.contig_cache[centroid_id] = out
         return out
 
-    cdef npc.uint8_t[:] get_seq(self, str genome_name, str contig_name, int start_coord, int end_coord):
-        assert False
+    cdef npc.uint8_t[:] get_seq(self, str contig_name, int start_coord, int end_coord):
+        cdef npc.uint8_t[:] contig
+        cdef const npc.uint8_t[:] seq_blob
+        if contig_name in self.seq_cache:
+            contig = self.seq_cache[contig_name]
+        else:
+            cmd = '''
+                SELECT seq
+                FROM nucl_seqs
+                WHERE contig_name=?
+            '''
+            seq_blob = self.conn.execute(cmd, (contig_name,)).fetchone()[0]
+            contig = np.copy(np.frombuffer(seq_blob, dtype=np.uint8))
+            self.seq_cache[contig_name] = contig
+        return contig[max(start_coord, 0):min(end_coord, contig.shape[0])]
 
     cdef add_contig_seq(self,
-                        str genome_name, str contig_name, int centroid_id,
-                        int start_coord, int end_coord, npc.uint8_t[:] contig_section):
+                        str contig_name, int centroid_id,
+                        int start_coord, int end_coord):
         self.conn.execute(
-            'INSERT INTO contigs VALUES (?,?,?,?,?,?)',
+            'INSERT INTO contigs VALUES (?,?,?,?)',
             (
-                genome_name, contig_name, centroid_id,
+                contig_name, centroid_id,
                 start_coord, end_coord,
-                np.array(contig_section, dtype=np.uint8).tobytes(),
             )
         )
 
@@ -115,6 +130,13 @@ cdef class ContigDB(CoreDB):
         self.add_contig(genome_name, contig_name, encode_kmer(contig), gap=gap)
 
     cdef add_contig(self, str genome_name, str contig_name, npc.uint8_t[:] contig, int gap=1):
+        self.conn.execute(
+            'INSERT INTO nucl_seqs VALUES (?,?)',
+            (
+                genome_name + contig_name,
+                np.array(contig, dtype=np.uint8).tobytes(),
+            )
+        )
         cdef int i
         cdef int section_end = 0
         cdef int section_start = 0
@@ -127,8 +149,8 @@ cdef class ContigDB(CoreDB):
                 current_centroid_id = centroid_id
             if centroid_id != current_centroid_id:
                 self.add_contig_seq(
-                    genome_name, contig_name, current_centroid_id,
-                    section_start, section_end, contig[section_start:section_end]
+                    genome_name + contig_name, current_centroid_id,
+                    section_start, section_end
 
                 )
                 section_start = i
@@ -136,9 +158,8 @@ cdef class ContigDB(CoreDB):
             section_end = i + self.ramifier.k
         if section_end > section_start:
             self.add_contig_seq(
-                genome_name, contig_name, current_centroid_id,
-                section_start, section_end, contig[section_start:section_end]
-
+                genome_name + contig_name, current_centroid_id,
+                section_start, section_end
             )
 
     def commit(self):
@@ -161,11 +182,19 @@ cdef class ContigDB(CoreDB):
             )
         )
         self.conn.executemany(
-            'INSERT INTO contigs VALUES (?,?,?,?,?,?)',
+            'INSERT INTO contigs VALUES (?,?,?,?)',
             (
-                (genome_name, contig_name, other_centroid_remap[cid], start_coord, end_coord, contig)
-                for genome_name, contig_name, cid, start_coord, end_coord, contig
+                (contig_name, other_centroid_remap[cid], start_coord, end_coord)
+                for contig_name, cid, start_coord, end_coord
                 in other.conn.execute('SELECT * FROM contigs')
+            )
+        )
+        self.conn.executemany(
+            'INSERT INTO nucl_seqs VALUES (?,?)',
+            (
+                (contig_name, contig)
+                for contig_name, contig
+                in other.conn.execute('SELECT * FROM nucl_seqs')
             )
         )
         self.commit()

@@ -84,7 +84,7 @@ class TestContigDB(TestCase):
         stored = contig_db.get_all_contigs()
         self.assertGreaterEqual(len(stored), 3)
 
-    '''
+
     def test_search_contig_db(self):
         conn = sqlite3.connect(':memory:')
         ramifier = RotatingRamifier.from_file(4, KMER_ROTATION)
@@ -93,7 +93,6 @@ class TestContigDB(TestCase):
         contig_db.py_add_contig('test_genome', 'test_contig', contig, gap=100)
         contig_db.commit()
         stored = contig_db.get_all_contigs()
-        self.assertEqual(len(stored), 2)
         searcher = ContigSearcher(contig_db)
         hits = searcher.py_search(contig[500:600], 0.1, 0.5)
         self.assertGreaterEqual(len(hits), 1)
@@ -106,7 +105,6 @@ class TestContigDB(TestCase):
         contig_db.py_add_contig('test_genome', 'test_contig', contig, gap=100)
         contig_db.commit()
         stored = contig_db.get_all_contigs()
-        self.assertEqual(len(stored), 2)
         searcher = ContigSearcher(contig_db)
         hits = searcher.py_search(contig[500:1500], 0.000001, 1)
         self.assertGreaterEqual(len(hits), 1)
@@ -123,9 +121,7 @@ class TestContigDB(TestCase):
             contig_db.py_add_contig(f'test_genome_{i}', f'test_contig_{i}', contig, gap=1)
         contig_db.commit()
         self.assertEqual(contig_db.centroids().shape[0], n_contigs * (contig_len - 31 + 1))
-        self.assertEqual(len(contig_db.get_all_contigs()), 6)
 
         searcher = ContigSearcher(contig_db)
         hits = searcher.py_search(contigs[0][500:600], 0, 1)
         self.assertEqual(len(hits), 1)
-    '''

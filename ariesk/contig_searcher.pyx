@@ -7,12 +7,7 @@ import numpy as np
 from libc.stdio cimport *
 from posix.stdio cimport * # FILE, fopen, fclose
 from libc.stdlib cimport malloc, free
-#from scipy.spatial import cKDTree
 from ariesk.ckdtree cimport cKDTree
-
-from skbio.alignment import StripedSmithWaterman
-from skbio.alignment cimport StripedSmithWaterman as StripedSmithWaterman_t
-# from ariesk.lib_ssw cimport *
 from ariesk.ssw cimport StripedSmithWaterman
 from ariesk.dbs.contig_db cimport ContigDB
 from ariesk.utils.kmers cimport (
@@ -39,11 +34,11 @@ cdef void add_range_to_range_list(int range_start, int range_end, list range_lis
     for i in range(len(range_list)):
         start, end = range_list[i]
         if range_start <= (end + slosh):
-            range_list[i][1] = kmer_end
+            range_list[i] = (range_list[i][0], range_end)
             kmer_merged = True
             break
     if not kmer_merged:
-        range_list.append((kmer_start, kmer_end))
+        range_list.append((range_start, range_end))
 
 
 cdef npc.uint64_t[:, :] condense_intervals(int slosh, npc.uint64_t[:, :] matched_pos):
@@ -127,7 +122,7 @@ cdef class ContigSearcher:
             )
         ]
 
-    cdef list search(self, npc.uint8_t[:] query, double coarse_radius, double kmer_fraction, double identity_tresh):
+    cdef list search(self, npc.uint8_t[:] query, double coarse_radius, double kmer_fraction, double identity_thresh):
         if self.logging:
             self.logger(f'Starting query. Coarse radius {coarse_radius}, k-mer fraction {kmer_fraction}')
         cdef npc.uint32_t n_kmers = (query.shape[0] - self.db.ramifier.k + 1) // (self.db.ramifier.k // 2)
@@ -137,8 +132,10 @@ cdef class ContigSearcher:
         cdef dict merged_coarse_hits = self.merge_coarse_hits(centroids_to_query_ranges)
         if self.logging:
             self.logger(f'Coarse merge complete.')
+        cdef str contig_key
+        cdef npc.uint64_t[:, :] matched_intervals
         for contig_key, matched_intervals in merged_coarse_hits.items():
-            out = self.fine_search(query, matched_intervals, identity_thresh)
+            out = self.fine_search(query, contig_key, matched_intervals, identity_thresh)
         if self.logging:
             self.logger(f'Fine search complete. {len(out)} passed.')
         return out
@@ -146,9 +143,9 @@ cdef class ContigSearcher:
     cdef dict merge_coarse_hits(self, dict centroids_to_query_ranges):
         cdef dict matched_pos_by_contig = {}
         for centroid_id, query_intervals in centroids_to_query_ranges.items():
-            for g_name, c_name, c_start, c_end, _ in self.db.get_contigs(centroid_id):
-                contig_key = (g_name, c_name)
-                if contig_key in merged_ranges:
+            for c_name, c_start, c_end in self.db.get_contigs(centroid_id):
+                contig_key = c_name
+                if contig_key in matched_pos_by_contig:
                     contig = matched_pos_by_contig[contig_key]
                 else:
                     contig = []
@@ -156,34 +153,37 @@ cdef class ContigSearcher:
                 for q_start, q_end in query_intervals:
                     contig.append((q_start, q_end, c_start, c_end))
         cdef list matched_pos_list
-        cdef int[:, :] matched_pos
+        cdef npc.uint64_t[:, :] matched_pos
+        cdef npc.ndarray order
         for contig_key, matched_pos_list in matched_pos_by_contig.items():
-            matched_pos = np.array(matched_pos_list)
-            matched_pos = matched_pos[matched_pos[:, 2].argsort()]
-            matched_pos = matched_pos[matched_pos[:, 0].argsort()]
-            matched_pos_by_contig[contig_key] = condense_intervals(self.db.ramifier.k, matched_pos)
+            matched_pos = np.array(matched_pos_list, dtype=np.uint64)
+            order = np.array(matched_pos[:, 2]).argsort()
+            matched_pos = np.array(matched_pos, dtype=np.uint64)[order, :]
+            order = np.array(matched_pos[:, 0]).argsort()
+            matched_pos = np.array(matched_pos, dtype=np.uint64)[order, :]
+            matched_pos = condense_intervals(self.db.ramifier.k, matched_pos)
+            matched_pos_by_contig[contig_key] = matched_pos
         return matched_pos_by_contig
 
-    cdef list fine_search(self, npc.uint8_t[:] query, str genome_name, str contig_name, int[:, :] matched_pos, double perc_id_thresh):
+    cdef list fine_search(self, npc.uint8_t[:] query, str contig_name, npc.uint64_t[:, :] matched_pos, double perc_id_thresh):
         cdef int interval_i
-        cdef list out
+        cdef list out = []
         cdef npc.uint8_t[:] qseq, tseq
-        cdef int qstart, qend
+        cdef int qstart, qend, tstart, tend
         cdef int slop = self.db.ramifier.k
-        cdef StripedSmithWaterman_t aligner
+        cdef StripedSmithWaterman aligner
         cdef double align_score
         for interval_i in range(matched_pos.shape[0]):
             qstart = max(0, matched_pos[interval_i, 0] - slop)
             qend = min(query.shape[0], matched_pos[interval_i, 1] + slop)
             qseq = query[qstart:qend]
-            tseq = self.db.get_seq(
-                genome_name, contig_name,
-                matched_pos[interval_i, 2] - slop, matched_pos[interval_i, 3] + slop
-            )
+            tstart = matched_pos[interval_i, 2] - slop
+            tend = matched_pos[interval_i, 3] + slop
+            tseq = self.db.get_seq(contig_name, tstart, tend)
             aligner = StripedSmithWaterman(qseq)
             align_score = aligner.align(tseq)
             if align_score >= perc_id_thresh:
-                out.append((align_score, qseq, tseq))
+                out.append((align_score, qstart, qend, tstart, tend, qseq, tseq))
         return out
 
     cdef double[:, :] _query_kmers(self, int n_kmers, npc.uint8_t[:] query, int kmer_gap):
