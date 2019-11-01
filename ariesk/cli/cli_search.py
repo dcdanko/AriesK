@@ -11,6 +11,8 @@ from ariesk.ram import (
     StatisticalRam,
     RotatingRamifier,
 )
+from skbio.alignment import StripedSmithWaterman
+from Bio import SeqIO
 
 
 class TimingLogger:
@@ -43,6 +45,26 @@ class TimingLogger:
 @click.group('search')
 def search_cli():
     pass
+
+
+@search_cli.command('ssw')
+@click.option('-o', '--outfile', default='-', type=click.File('w'))
+@click.option('-i', '--seq-identity', default=50.0)
+@click.argument('queries', type=click.File('r'))
+@click.argument('targets', type=click.File('r'))
+def ssw_search_contig(outfile, seq_identity, queries, targets):
+    targets = list(SeqIO.parse(targets, 'fasta'))
+    for qrec in SeqIO.parse(queries, 'fasta'):
+        aligner = StripedSmithWaterman(str(qrec.seq))
+        for trec in targets:
+            alignment = aligner(str(trec.seq))
+            aln_len = len(alignment.aligned_query_sequence)
+            aln_score = alignment.optimal_alignment_score
+            aln_score /= (2 * aln_len)
+            aln_score *= 100
+            if seq_identity <= aln_score and aln_len >= 256:
+                out = f'{qrec.id}\t{trec.id}\t{aln_score}\t{aln_len}'
+                print(out, file=outfile)
 
 
 @search_cli.command('contig')
