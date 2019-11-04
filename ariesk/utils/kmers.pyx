@@ -106,6 +106,14 @@ def py_needle(kmers, normalize=False):
     return out
 
 
+def py_needle_2(kmers1, kmers2, normalize=False):
+    out = []
+    for k1 in kmers1:
+        for k2 in kmers2:
+            out.append((k1, k2, needle_dist(encode_kmer(k1), encode_kmer(k2), normalize)))
+    return out
+
+
 def py_needle_fast(kmers, normalize=False):
     out = []
     cdef double[:, :] score = np.zeros((len(kmers[0]) + 1, len(kmers[0]) + 1))

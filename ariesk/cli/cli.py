@@ -4,6 +4,7 @@ from .cli_dev import dev_cli
 from .cli_stats import stats_cli
 from .cli_build import build_cli
 from .cli_search import search_cli
+from .cli_dists import dist_cli
 
 
 @click.group()
@@ -15,3 +16,4 @@ main.add_command(dev_cli)
 main.add_command(stats_cli)
 main.add_command(build_cli)
 main.add_command(search_cli)
+main.add_command(dist_cli)

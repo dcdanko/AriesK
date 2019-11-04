@@ -8,6 +8,7 @@ cdef class Ramifier:
     cdef public long k
     cdef public double [:, :] rs_matrix
     cdef npc.uint8_t [:, :] kmer_matrix
+    cdef public bint use_rc
 
     cdef npc.ndarray c_ramify(self, npc.uint8_t [::] binary_kmer)
 
@@ -33,6 +34,7 @@ cdef class StatisticalRam:
     cdef public double [:, :] rfts
     cdef public int num_kmers_added
     cdef public int max_size
+    cdef public bint closed
 
     cpdef add_kmer(self, str kmer)
     cdef c_add_kmer(self, npc.uint8_t [:] binary_kmer)

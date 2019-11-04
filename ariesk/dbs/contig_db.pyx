@@ -100,6 +100,9 @@ cdef class ContigDB(CoreDB):
         self.contig_cache[centroid_id] = out
         return out
 
+    def py_get_seq(self, str contig_name, int start_coord, int end_coord):
+        return decode_kmer(self.get_seq(contig_name, start_coord, end_coord))
+
     cdef npc.uint8_t[:] get_seq(self, str contig_name, int start_coord, int end_coord):
         cdef npc.uint8_t[:] contig
         cdef const npc.uint8_t[:] seq_blob

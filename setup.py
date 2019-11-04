@@ -42,6 +42,7 @@ extensions = [
         ('ariesk/pre_db.pyx', 'ariesk.pre_db'),
         ('ariesk/cluster.pyx', 'ariesk.cluster'),
         ('ariesk/ram.pyx', 'ariesk.ram'),
+        ('ariesk/dist_matrix_builder.pyx', 'ariesk.dist_matrix_builder'),
 
         ('ariesk/seed_align.pyx', 'ariesk.seed_align'),
     ]

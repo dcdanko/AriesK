@@ -39,7 +39,7 @@ def calculate_pca_rotation(kmer_len, num_kmers, outfile, kmer_table):
 
 @build_cli.command('rotation-fasta')
 @click.option('-k', '--kmer-len', default=31)
-@click.option('-d', '--dropout', default=1000, help='Only keep every nth kmer (millionths)')
+@click.option('-d', '--dropout', default=1000, help='Only keep every nth kmer (millionths, stochastic)')
 @click.option('-n', '--num-kmers', default=1000, help='Number of kmers to compare.')
 @click.option('-o', '--outfile', default='-', type=click.File('w'))
 @click.argument('fasta_list', type=click.File('r'))
@@ -58,5 +58,7 @@ def calculate_pca_rotation_fasta(kmer_len, dropout, num_kmers, outfile, fasta_li
         'center': stat_ram.get_centers().tolist(),
         'scale': stat_ram.get_scales().tolist(),
         'rotation': stat_ram.get_rotation().tolist(),
+        'num_kmers': stat_ram.num_kmers_added,
     }
+    click.echo(f'Built rotation with {stat_ram.num_kmers_added:,} k-mers.', err=True)
     outfile.write(dumps(out))

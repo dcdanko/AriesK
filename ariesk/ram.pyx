@@ -24,10 +24,11 @@ from ariesk.utils.kmers cimport (
 cdef class Ramifier:
     """Project k-mers into RFT space."""
 
-    def __cinit__(self, k):
+    def __cinit__(self, k, use_rc=True):
         self.k = k
         self.rs_matrix = build_rs_matrix(self.k)
         self.kmer_matrix = np.zeros((self.k, 4), dtype=np.uint8)
+        self.use_rc = use_rc
 
     cdef npc.ndarray c_ramify(self, npc.uint8_t [::] binary_kmer):
         cdef int i, j, k
@@ -37,7 +38,12 @@ cdef class Ramifier:
             k = binary_kmer[i]
             if k <= 3:  # leave 'N' blank
                 self.kmer_matrix[i, k] = 1
-        cdef npc.ndarray rft = np.absolute(np.dot(self.rs_matrix, self.kmer_matrix)).flatten()
+            if self.use_rc:
+                k = binary_kmer[self.k - i - 1]
+                if k <= 3:  # leave 'N' blank
+                    k = 3 - k
+                    self.kmer_matrix[i, k] = 1
+        cdef npc.ndarray rft = np.dot(self.rs_matrix, self.kmer_matrix).flatten()
         return rft
 
     def ramify(self, str kmer):
@@ -47,14 +53,14 @@ cdef class Ramifier:
 cdef class RotatingRamifier:
     """Project k-mers into RFT space with PCA."""
 
-    def __cinit__(self, k, d, rotation, center, scale, use_scale=False):
+    def __cinit__(self, k, d, rotation, center, scale, use_scale=True, use_rc=True):
         self.k = k
         self.d = d
         self.rotation = rotation
         self.d_rotation = rotation[:self.d, :]
         self.center = center
         self.scale = scale
-        self.ramifier = Ramifier(self.k)
+        self.ramifier = Ramifier(self.k, use_rc=use_rc)
         self.use_scale = use_scale
 
     cdef npc.ndarray c_ramify(self, npc.uint8_t [::] binary_kmer):
@@ -95,12 +101,18 @@ cdef class StatisticalRam:
     Easier to pre-compute this stuff.
     """
 
-    def __cinit__(self, k, max_size):
+    def __cinit__(self, k, max_size, use_rc=True):
         self.k = k
         self.num_kmers_added = 0
         self.max_size = max_size
-        self.ramifier = Ramifier(self.k)
+        self.ramifier = Ramifier(self.k, use_rc=use_rc)
         self.rfts = npc.ndarray((self.max_size, 4 * self.k))
+        self.closed = False
+
+    def close(self):
+        if not self.closed:
+            self.rfts = np.array(self.rfts[0:self.num_kmers_added, :])
+            self.closed = True
 
     cpdef add_kmer(self, str kmer):
         assert self.num_kmers_added < self.max_size
@@ -114,19 +126,23 @@ cdef class StatisticalRam:
         self.num_kmers_added += 1
 
     def get_centers(self):
+        self.close()
         return np.mean(self.rfts, axis=0)
 
     def get_scales(self):
+        self.close()
         centered = self.rfts - self.get_centers()
-        scales = np.max(abs(centered), axis=0)
+        scales = np.std(centered, axis=0)
         return scales
 
     def get_rotation(self):
-        centered_scaled = (self.rfts - self.get_centers()) / self.get_scales()
+        self.close()
+        centered_scaled = self.rfts - self.get_centers()
+        centered_scaled /= self.get_scales()
         R = np.cov(centered_scaled, rowvar=False)
         evals, evecs = np.linalg.eigh(R)
         idx = np.argsort(evals)[::-1]
-        evecs = evecs[:,idx]
+        evecs = evecs[:, idx]
         return evecs.T
 
     def bulk_add_kmers(self, kmers):
@@ -170,7 +186,7 @@ cdef class StatisticalRam:
                     break
                 if kmer[self.ramifier.k - 1] > 3:
                     break
-                if (rand() % (1000 * 1000)) < dropout:
+                if (dropout <= 0) or ((rand() % (1000 * 1000)) < dropout):
                     self.c_add_kmer(kmer)
                     n_added += 1
                 line += 1
