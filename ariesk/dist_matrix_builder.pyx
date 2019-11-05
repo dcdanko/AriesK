@@ -28,26 +28,23 @@ cdef class DistMatrixBuilder:
         cdef double[:] rft
         cdef npc.uint8_t[:] kmer
 
-        print('building matrixer')
         for i in range(self.kmers.shape[0]):
             kmer = encode_kmer(kmers[i])
             for j in range(k):
                 self.kmers[i, j] = kmer[j]
-        print('encoded kmers')
+
         cdef StatisticalRam stat_ram = StatisticalRam(k, self.kmers.shape[0])
         for i in range(self.kmers.shape[0]):
             stat_ram.c_add_kmer(self.kmers[i,:])
-        print('reduced dims')
         cdef RotatingRamifier ramifier = RotatingRamifier(
             k, d, stat_ram.get_rotation(), stat_ram.get_centers(), stat_ram.get_scales()
         )
-        print('built ramifier')
+
         for i in range(self.kmers.shape[0]):
             rft = ramifier.c_ramify(self.kmers[i, :])
             for j in range(d):
                 self.rfts[i, j] = rft[j]
         self.tree = cKDTree(self.rfts)
-        print('built tree')
 
     def build(self, double radius):
         cdef list results = []

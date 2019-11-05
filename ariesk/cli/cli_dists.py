@@ -62,7 +62,7 @@ def cli_lev_dist_matrix(radius, dim, gap, kmer_len, outfile, fasta):
             kmers.add(kmer)
     click.echo(f'{len(kmers)} unique kmers.', err=True)
     matrixer = DistMatrixBuilder(list(kmers), dim, kmer_len)
-    print(radius)
+
     start = time()
     dist_tbl = pd.DataFrame(matrixer.build(radius), columns=['k1', 'k2', 'lev'])
     elapsed = time() - start

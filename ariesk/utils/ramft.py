@@ -3,6 +3,7 @@
 
 from math import gcd
 import numpy as np
+from os.path import dirname, join
 
 
 def memoize(func):
@@ -36,8 +37,17 @@ def ram_sum(n, q):
     return np.real(c_q)
 
 
+RS_BLOB_FILENAME = join(dirname(__file__), 'rs_matrix.blob')
+
 def build_rs_matrix(N):
     """Return the ram sum matrix with normalization."""
+    if N <= 1000:
+        rs = np.reshape(
+            np.frombuffer(open(RS_BLOB_FILENAME, 'rb').read()),
+            (1000, 1000)
+        )
+        return np.copy(rs[:N, :N])
+
     def inner(q, j):
         """Return the normalized ram sum for the coordinates."""
         return (1 / (phi(q) * N)) * ram_sum(1 + (j - 1) % q, q)
