@@ -14,7 +14,7 @@ from ariesk.ckdtree cimport cKDTree
 
 from ariesk.ram cimport StatisticalRam, RotatingRamifier
 
-from ariesk.utils.kmers cimport encode_kmer, needle_dist
+from ariesk.utils.kmers cimport encode_kmer, needle_dist, decode_kmer
 
 cdef class DistMatrixBuilder:
     cdef public npc.uint8_t[:, :] kmers
@@ -54,6 +54,10 @@ cdef class DistMatrixBuilder:
             for hit in hit_list:
                 if i < hit:
                     dist = needle_dist(self.kmers[i,:], self.kmers[hit, :], False)
-                    results.append((i, hit, dist))
+                    results.append((
+                        decode_kmer(self.kmers[i, :]),
+                        decode_kmer(self.kmers[hit, :]),
+                        dist
+                    ))
             i += 1
         return results
