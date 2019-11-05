@@ -1,0 +1,59 @@
+[21.93us] Connecting to SQL database...
+[396.0us] Loading resources from database...
+[17.17us] Loading core database...
+[212.0us] Building core SQL tables...
+[862.8us] Loading Ramifier from database...
+[549.9ms] Loading centroids from database...
+[7.876s] Loaded Core Database.
+[16.93us] Building SQL tables...
+[119.9us] Building SQL indices...
+[172.9us] Loaded Contig Database.
+[10.97us] Loading searcher...
+[40.05us] Preprocessing centers
+[74.03ms] Building search tree...
+[85.56ms] [KD-Tree] Calling C Build Routine...
+[38.67s] [KD-Tree] Finished C Build Routine.
+[2.221ms] Built search tree.
+[10.97us] Searcher loaded. Radius 0.2828427255153656, num. centers 1688561
+[121.8us] Starting query. Coarse radius 0.8, k-mer fraction 0.5
+[174.0ms] Coarse search complete. 59275 candidates.
+[12.25s] Coarse merge complete.
+[496.0ms] Fine search complete. 139 passed.
+[7.992ms] Starting query. Coarse radius 0.8, k-mer fraction 0.5
+[238.5ms] Coarse search complete. 71554 candidates.
+[14.22s] Coarse merge complete.
+[449.9ms] Fine search complete. 55 passed.
+[8.818ms] Starting query. Coarse radius 0.8, k-mer fraction 0.5
+[170.8ms] Coarse search complete. 36896 candidates.
+[3.287s] Coarse merge complete.
+[361.9ms] Fine search complete. 46 passed.
+[5.991ms] Starting query. Coarse radius 0.8, k-mer fraction 0.5
+[11.66ms] Coarse search complete. 11495 candidates.
+[1.127s] Coarse merge complete.
+[130.4ms] Fine search complete. 1 passed.
+[2.872ms] Starting query. Coarse radius 0.8, k-mer fraction 0.5
+[168.0ms] Coarse search complete. 44702 candidates.
+[2.248s] Coarse merge complete.
+[204.4ms] Fine search complete. 5 passed.
+Search complete in 35.568s
+[6.318ms] Starting query. Coarse radius 0.8, k-mer fraction 0.5
+[125.9ms] Coarse search complete. 59275 candidates.
+[166.7ms] Coarse merge complete.
+[345.0ms] Fine search complete. 139 passed.
+[7.526ms] Starting query. Coarse radius 0.8, k-mer fraction 0.5
+[224.8ms] Coarse search complete. 71554 candidates.
+[204.1ms] Coarse merge complete.
+[412.5ms] Fine search complete. 55 passed.
+[8.694ms] Starting query. Coarse radius 0.8, k-mer fraction 0.5
+[121.2ms] Coarse search complete. 36896 candidates.
+[157.4ms] Coarse merge complete.
+[359.5ms] Fine search complete. 46 passed.
+[7.738ms] Starting query. Coarse radius 0.8, k-mer fraction 0.5
+[11.88ms] Coarse search complete. 11495 candidates.
+[56.88ms] Coarse merge complete.
+[130.7ms] Fine search complete. 1 passed.
+[3.021ms] Starting query. Coarse radius 0.8, k-mer fraction 0.5
+[172.3ms] Coarse search complete. 44702 candidates.
+[115.5ms] Coarse merge complete.
+[201.5ms] Fine search complete. 5 passed.
+Search complete in 2.8408s

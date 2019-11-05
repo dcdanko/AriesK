@@ -1,0 +1,17 @@
+burst_vana_calibrate.csv filter=lfs diff=lfs merge=lfs -text
+10_contigs_dists.lev.csv filter=lfs diff=lfs merge=lfs -text
+50_contigs_dists.lev.csv filter=lfs diff=lfs merge=lfs -text
+50_contigs_dists.ram.csv filter=lfs diff=lfs merge=lfs -text
+5_contigs_calibrate.csv filter=lfs diff=lfs merge=lfs -text
+vana_dists.lev.csv filter=lfs diff=lfs merge=lfs -text
+100_contigs_dists.ram.csv filter=lfs diff=lfs merge=lfs -text
+20_contigs_dists.ram.csv filter=lfs diff=lfs merge=lfs -text
+burst_vana_calibrate.k_32.csv filter=lfs diff=lfs merge=lfs -text
+megares_calibration.csv filter=lfs diff=lfs merge=lfs -text
+20_contigs_dists.lev.csv filter=lfs diff=lfs merge=lfs -text
+5_contigs_dists.lev.csv filter=lfs diff=lfs merge=lfs -text
+5_contigs_dists.ram.csv filter=lfs diff=lfs merge=lfs -text
+megares_probe_calibration.csv filter=lfs diff=lfs merge=lfs -text
+vana_calibrate.csv filter=lfs diff=lfs merge=lfs -text
+vana_dists.ram.csv filter=lfs diff=lfs merge=lfs -text
+100_contigs_dists.lev.csv filter=lfs diff=lfs merge=lfs -text

@@ -112,7 +112,7 @@ def search_contig(verbose, num_repeats, radius, seq_identity, kmer_fraction, min
         start = time()
         all_hits = searcher.search_contigs_from_fasta(fasta, radius, kmer_fraction, seq_identity)
         elapsed = time() - start
-        click.echo(f'Search complete in {elapsed:.5}s')
+        click.echo(f'Search complete in {elapsed:.5}s', err=True)
     for query_contig, hits in all_hits.items():
         for contig_name, align_score, qstart, qend, tstart, tend, qseq, tseq in hits:
             header = f'{query_contig}\t{contig_name}\t{align_score}\t{qstart}\t{qend}\t{tstart}\t{tend}'
