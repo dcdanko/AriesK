@@ -1,6 +1,6 @@
 # AriesK
 
-K-mer phylogeny based on the Ramanujan Fourier Transform
+Intrinsic conversion of DNA to vectors based on the Ramanujan Fourier Transform
 
 ## Installation
 
@@ -11,14 +11,17 @@ python -m pytest                     # run unit tests
 ```
 
 
-## Performance
+## Building an Implicit Distance Matrix
 
-You can run a test evaluation on your machine
 ```
-$ ariesk eval --num-kmers 100000
-Made 100000 E. coli k-mers for testing
-Build time: 17.914s
-{'num_kmers': 100000, 'num_singletons': 12452, 'num_clusters': 25336}
+ariesk dists ram -o output.csv <fasta file>
 ```
 
-This command will build an index from 100,000 32-mers drawn from the E. coli genome. Additional parameters let you change the radius of the index and the k-mer size.
+
+## Building and Searching a Contig Database
+
+```
+ariesk build rotation-fasta -k 256 -n 100000 -d 1000 -o rotation.json <(ls -1 <fasta file>)
+ariesk build contigs from-fasta -o mydb.sqlite rotation.json <(ls -1 <fasta file>)
+ariesk search contig-fasta -v -n 3 -r 0.4 mydb.sqlite <fasta file>
+```
