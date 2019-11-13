@@ -84,6 +84,7 @@ setuptools.setup(
         'scipy',
         'numpy',
         'umap-learn',
+        'cython',
     ],
     entry_points={
         'console_scripts': [
