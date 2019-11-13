@@ -2,6 +2,8 @@
 
 Intrinsic conversion of DNA to vectors based on the Ramanujan Fourier Transform
 
+[![CircleCI](https://circleci.com/gh/dcdanko/AriesK.svg?style=svg)](https://circleci.com/gh/dcdanko/AriesK)
+
 ## Installation
 
 ```
